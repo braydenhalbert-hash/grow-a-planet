@@ -39,6 +39,69 @@ function NpcTalk.TextSize()
 end
 
 ---------------------------------------------------------------------
+-- Typing sound: faint keyboard keys mixed with soft mouse clicks, one tick every couple of letters
+---------------------------------------------------------------------
+local SoundService = game:GetService("SoundService")
+local ContentProvider = game:GetService("ContentProvider")
+
+local TICK_SOUNDS = {
+	{ Id = "rbxassetid://9113140795", Volume = 0.22 },     -- keyboard key
+	{ Id = "rbxassetid://9113142220", Volume = 0.22 },     -- keyboard key
+	{ Id = "rbxassetid://9113140784", Volume = 0.2 },      -- keyboard key
+	{ Id = "rbxassetid://123087446204451", Volume = 0.12 }, -- soft mouse click
+}
+local TICK_EVERY = 2 -- letters per tick
+local TICK_LENGTH = 0.09 -- seconds: only the first tap of each clip, so it stays crisp
+
+local tickFolder = Instance.new("Folder")
+tickFolder.Name = "NpcTypingSounds"
+tickFolder.Parent = SoundService
+local tickPool = {}
+for _, info in ipairs(TICK_SOUNDS) do
+	for _ = 1, 3 do -- a few copies of each so fast ticks can overlap
+		local sound = Instance.new("Sound")
+		sound.SoundId = info.Id
+		sound.Volume = info.Volume
+		sound.Parent = tickFolder
+		table.insert(tickPool, sound)
+	end
+end
+task.spawn(function()
+	pcall(function()
+		ContentProvider:PreloadAsync(tickPool)
+	end)
+end)
+
+local tickRng = Random.new()
+local tickIds = {} -- sound -> latest play, so an old stop never cuts off a newer tick
+local lastTick = 0
+function NpcTalk.Tick()
+	local now = os.clock()
+	if now - lastTick < 0.035 then
+		return
+	end
+	lastTick = now
+	local sound = tickPool[tickRng:NextInteger(1, #tickPool)]
+	sound.PlaybackSpeed = tickRng:NextNumber(0.92, 1.18)
+	sound.TimePosition = 0
+	sound:Play()
+	local id = (tickIds[sound] or 0) + 1
+	tickIds[sound] = id
+	task.delay(TICK_LENGTH, function()
+		if tickIds[sound] == id then
+			sound:Stop()
+		end
+	end)
+end
+
+-- call once per letter while typing; ticks every TICK_EVERY letters, never on spaces
+function NpcTalk.TypeSound(index, character)
+	if character ~= " " and index % TICK_EVERY == 1 then
+		NpcTalk.Tick()
+	end
+end
+
+---------------------------------------------------------------------
 -- Speech above heads
 ---------------------------------------------------------------------
 local speeches = {} -- part -> { Gui, Id }
@@ -84,13 +147,15 @@ function NpcTalk.Say(part, text, holdSeconds)
 	outline.Parent = label
 
 	speeches[part] = { Gui = gui, Id = id }
-	local total = utf8.len(label.ContentText) or #label.ContentText
+	local content = label.ContentText
+	local total = utf8.len(content) or #content
 	task.spawn(function()
 		for i = 1, total do
 			if not gui.Parent then
 				return
 			end
 			label.MaxVisibleGraphemes = i
+			NpcTalk.TypeSound(i, string.sub(content, i, i))
 			task.wait(TYPE_SPEED)
 		end
 		label.MaxVisibleGraphemes = -1

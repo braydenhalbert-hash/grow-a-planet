@@ -156,6 +156,7 @@ local function showChoices(id)
 				return
 			end
 			line.MaxVisibleGraphemes = n
+			NpcTalk.TypeSound(n, string.sub(line.Text, n, n))
 			task.wait(TYPE_SPEED)
 		end
 		line.MaxVisibleGraphemes = -1
