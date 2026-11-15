@@ -104,7 +104,7 @@ local function addTitle(character, titleText)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "OwnerTitle"
 	gui.Adornee = head
-	gui.Size = UDim2.fromOffset(260, 60)
+	gui.Size = UDim2.fromOffset(300, 90) -- room around the word for the sparkles
 	gui.StudsOffset = Vector3.new(0, 3.5, 0)
 	gui.LightInfluence = 0
 	gui.MaxDistance = 220
@@ -112,7 +112,9 @@ local function addTitle(character, titleText)
 	gui.Parent = head
 	local text = Instance.new("TextLabel")
 	text.BackgroundTransparency = 1
-	text.Size = UDim2.fromScale(1, 1)
+	text.AnchorPoint = Vector2.new(0.5, 0.5)
+	text.Position = UDim2.fromScale(0.5, 0.5)
+	text.Size = UDim2.fromOffset(260, 60)
 	text.Font = Enum.Font.FredokaOne
 	text.TextScaled = true
 	text.Text = titleText
@@ -131,20 +133,7 @@ local function addTitle(character, titleText)
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 200, 60)),
 	})
 	shine.Parent = text
-	local sparkle = Instance.new("ParticleEmitter")
-	sparkle.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	sparkle.Color = ColorSequence.new(Color3.fromRGB(255, 225, 120), Color3.fromRGB(255, 150, 230))
-	sparkle.LightEmission = 1
-	sparkle.Size = NumberSequence.new(0.5, 0)
-	sparkle.Lifetime = NumberRange.new(0.8, 1.5)
-	sparkle.Rate = 6
-	sparkle.Speed = NumberRange.new(0.5, 2)
-	sparkle.SpreadAngle = Vector2.new(180, 180)
-	sparkle.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) })
-	local anchor = Instance.new("Attachment")
-	anchor.Position = Vector3.new(0, 3.5, 0)
-	anchor.Parent = head
-	sparkle.Parent = anchor
+	-- the sparkles are drawn by OwnerTitleFX on each player's screen, right around the word
 	CollectionService:AddTag(gui, "OwnerTitle") -- OwnerTitleFX (client) makes it shimmer and float
 end
 
