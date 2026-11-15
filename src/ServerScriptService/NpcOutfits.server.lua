@@ -25,14 +25,6 @@ local NPC_OUTFITS = {
 		Face = 0,                     -- classic smile
 		Skin = Color3.fromRGB(165, 105, 72),
 	},
-	-- Black hole pack seller (purple stand): beanie, purple hoodie, black jeans
-	R6 = {
-		Hat = "83960657335506",       -- Worn Black Beanie
-		Shirt = 4580627432,           -- Purple Hoodie
-		Pants = 105229674413918,      -- Black Jeans
-		Face = 26424808,              -- Know-It-All Grin
-		Skin = Color3.fromRGB(120, 80, 58),
-	},
 }
 
 local shops = workspace:WaitForChild("SHOPS", 30)
