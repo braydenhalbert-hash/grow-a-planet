@@ -155,6 +155,63 @@ GearCatalog.Gear = {
 		Color = rgb(120, 240, 255), DustColor = rgb(200, 250, 255),
 		Description = "An entire universe on a pedestal. Planets grow 5x as fast.",
 	}),
+	-- THE STARDUST LINE
+	sprinkler({
+		Id = "sprinkler_galaxystardust", Name = "Galaxy Stardust Sprinkler", Rarity = "Epic",
+		Cost = 2400000, Stock = { 1, 2 }, RestockChance = 0.24,
+		Radius = 19, Duration = 840, GrowBoost = 2.5, StardustChance = 0.18,
+		Color = rgb(170, 80, 255), DustColor = rgb(200, 160, 255),
+		Description = "A spinning galaxy that sprays galaxy stardust. Planets grow 2.5x as fast.",
+	}),
+	sprinkler({
+		Id = "sprinkler_solarstardust", Name = "Solar Stardust Sprinkler", Rarity = "Legendary",
+		Cost = 3500000, Stock = { 1, 1 }, RestockChance = 0.16,
+		Radius = 21, Duration = 1020, GrowBoost = 3, StardustChance = 0.21,
+		Color = rgb(255, 200, 60), DustColor = rgb(255, 225, 130),
+		Description = "A blazing sun with a crown of flames and golden star dust. Planets grow 3x as fast.",
+	}),
+	sprinkler({
+		Id = "sprinkler_blackholestardust", Name = "Black Hole Stardust Sprinkler", Rarity = "Mythic",
+		Cost = 6500000, Stock = { 1, 1 }, RestockChance = 0.08,
+		Radius = 24, Duration = 1260, GrowBoost = 3.6, StardustChance = 0.34,
+		Color = rgb(255, 60, 200), DustColor = rgb(255, 150, 230),
+		Description = "A magenta black hole in a storm of debris. The best for black hole mutations.",
+	}),
+	sprinkler({
+		Id = "sprinkler_nebulastardust", Name = "Nebula Stardust Sprinkler", Rarity = "Divine",
+		Cost = 12000000, Stock = { 1, 1 }, RestockChance = 0.045,
+		Radius = 27, Duration = 1500, GrowBoost = 4.2, StardustChance = 0.37,
+		Color = rgb(80, 230, 255), DustColor = rgb(170, 240, 255),
+		Description = "A living nebula with a crystal heart. Planets grow 4.2x as fast.",
+	}),
+	sprinkler({
+		Id = "sprinkler_supernovastardust", Name = "Supernova Stardust Sprinkler", Rarity = "Celestial",
+		Cost = 30000000, Stock = { 1, 1 }, RestockChance = 0.028,
+		Radius = 30, Duration = 1800, GrowBoost = 5.2, StardustChance = 0.42,
+		Color = rgb(255, 210, 90), DustColor = rgb(255, 240, 200),
+		Description = "A star exploding into crystal spikes and golden stardust. Planets grow 5.2x as fast.",
+	}),
+	sprinkler({
+		Id = "sprinkler_celestialstardust", Name = "Celestial Stardust Sprinkler", Rarity = "Celestial",
+		Cost = 45000000, Stock = { 1, 1 }, RestockChance = 0.024,
+		Radius = 31, Duration = 1950, GrowBoost = 5.6, StardustChance = 0.46,
+		Color = rgb(200, 250, 255), DustColor = rgb(230, 250, 255),
+		Description = "A heavenly orb with wings and a living constellation. Planets grow 5.6x as fast.",
+	}),
+	sprinkler({
+		Id = "sprinkler_quantumstardust", Name = "Quantum Stardust Sprinkler", Rarity = "Cosmic",
+		Cost = 75000000, Stock = { 1, 1 }, RestockChance = 0.018,
+		Radius = 33, Duration = 2100, GrowBoost = 6.2, StardustChance = 0.5,
+		Color = rgb(80, 255, 110), DustColor = rgb(180, 255, 190),
+		Description = "Nested quantum cubes bending space. Planets grow 6.2x as fast.",
+	}),
+	sprinkler({
+		Id = "sprinkler_voidstardust", Name = "Void Stardust Sprinkler", Rarity = "Limited",
+		Cost = 150000000, Stock = { 1, 1 }, RestockChance = 0.012,
+		Radius = 35, Duration = 2400, GrowBoost = 7, StardustChance = 0.6,
+		Color = rgb(150, 70, 255), DustColor = rgb(200, 160, 255),
+		Description = "LIMITED. An obsidian crown around a violet black hole. Planets grow 7x as fast.",
+	}),
 }
 
 GearCatalog.ById = {}

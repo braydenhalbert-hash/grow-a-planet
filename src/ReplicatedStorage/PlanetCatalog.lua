@@ -110,6 +110,8 @@ PlanetCatalog.Rarities = {
 	Mythic    = { Order = 6, Color = c(255, 70, 120),  Stock = { 1, 2 } },
 	Divine    = { Order = 7, Color = c(255, 230, 140), Stock = { 1, 1 } }, -- sprinklers only
 	Celestial = { Order = 8, Color = c(120, 240, 255), Stock = { 1, 1 } }, -- sprinklers only
+	Cosmic    = { Order = 9, Color = c(90, 255, 120),  Stock = { 1, 1 } }, -- sprinklers only
+	Limited   = { Order = 10, Color = c(190, 140, 255), Stock = { 1, 1 } }, -- sprinklers only
 }
 
 ---------------------------------------------------------------------

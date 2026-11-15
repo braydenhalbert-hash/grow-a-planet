@@ -286,6 +286,7 @@ task.spawn(function()
 						-- the client shows stardust around planets with this (and sucks it into black holes)
 						p.Model:SetAttribute("StardustUntil", now + 2)
 						p.Model:SetAttribute("StardustColor", bestGear.DustColor)
+						p.Model:SetAttribute("StardustStyle", bestGear.Id) -- which sprinkler's stardust floats around it
 						p.Model:SetAttribute("Group", p.Group) -- the client sucks the dust into black holes
 						if not p.Ready then
 							gardenApi:Invoke("boost", p.Model, (best.GrowBoost - 1) * dt)

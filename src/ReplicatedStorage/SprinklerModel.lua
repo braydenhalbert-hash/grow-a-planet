@@ -40,12 +40,14 @@ local METAL_COLORS = { [C.Metal] = true, [C.Dark] = true, [C.Grey] = true, [C.St
 SprinklerModel.RarityColor = {
 	Common = rgb(165, 165, 180), Uncommon = rgb(90, 210, 120), Rare = rgb(80, 150, 255), Epic = rgb(200, 90, 255),
 	Legendary = rgb(255, 175, 60), Mythic = rgb(255, 70, 120), Divine = rgb(255, 230, 140), Celestial = rgb(120, 240, 255),
+	Cosmic = rgb(90, 255, 120), Limited = rgb(190, 140, 255),
 }
-SprinklerModel.RarityTier = { Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5, Mythic = 6, Divine = 7, Celestial = 8 }
+SprinklerModel.RarityTier = { Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5, Mythic = 6, Divine = 7, Celestial = 8, Cosmic = 9, Limited = 10 }
 
-local SPARKLE = "rbxasset://textures/particles/sparkles_main.dds"
+local Stardust = require(game:GetService("ReplicatedStorage"):WaitForChild("Stardust"))
+local SPARKLE = Stardust.Texture("Dust")   -- our own stardust textures (see Stardust)
 local FIRE = "rbxasset://textures/particles/fire_main.dds"
-local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
+local SMOKE = Stardust.Texture("Nebula")
 
 local FLAT = CFrame.Angles(math.rad(90), 0, 0)    -- ring adornments point along Z; this lays them flat
 local UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- cylinder parts lie on X; this stands them up
@@ -315,6 +317,33 @@ local function pedestal(b, o)
 		b:cyl("Band", 0.1, colD + 0.16, by, o.BandColor or trim, Enum.Material.Metal)
 		b:cyl("BandGlow", 0.04, colD + 0.2, by, accent, Enum.Material.Neon)
 	end
+	-- neon ring on the ground round the base, with sparks of energy running round it
+	b:ring(W / 2 + 0.5, 0.12, 0.05, accent, 0.05, { Piv = CFrame.new(0, 0.05, 0) })
+	b:ring(W / 2 + 0.75, 0.6, 0.02, accent, 0.8, { Piv = CFrame.new(0, 0.04, 0) })
+	for i = 1, 3 do
+		local spark = b:neon("Spark", 0.22, Vector3.new(0, 0.12, 0), C.White)
+		b:anim(spark, { Piv = CFrame.new(0, 0.12, 0), Rel = CFrame.new(W / 2 + 0.44, 0, 0), Spd = 1.8, Ph = i * math.pi * 2 / 3 })
+	end
+	-- energy flowing up the pillar (a scrolling beam)
+	if not b.ghost and not b.icon and Stardust.Tex.Flow ~= "" then
+		local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
+		a0.Position, a1.Position = Vector3.new(0, y, 0), Vector3.new(0, y + H + 0.1, 0)
+		a0.Parent, a1.Parent = b.originPart, b.originPart
+		local flow = Instance.new("Beam")
+		flow.Name = "EnergyFlow"
+		flow.Attachment0, flow.Attachment1 = a0, a1
+		flow.Texture = Stardust.Tex.Flow
+		flow.TextureMode = Enum.TextureMode.Wrap
+		flow.TextureLength = 1.6
+		flow.TextureSpeed = -1.4
+		flow.Width0, flow.Width1 = colD * 1.15, colD * 1.15
+		flow.FaceCamera = true
+		flow.LightEmission = 1
+		flow.LightInfluence = 0
+		flow.Color = seq(C.White, accent)
+		flow.Transparency = NumberSequence.new(0.1)
+		flow.Parent = b.originPart
+	end
 	if o.Fins then
 		for i = 1, o.Fins do
 			b:part("Fin", Enum.PartType.Block, Vector3.new(0.1, H * 0.45, 0.55), CFrame.new(0, y + H * 0.25, 0) * CFrame.Angles(0, (i - 1) * math.pi * 2 / o.Fins, 0) * CFrame.new(colD / 2 + 0.2, 0, 0), trim, Enum.Material.Metal)
@@ -379,7 +408,7 @@ local function galaxy(b, at, R, arms, dots, cols, tilt, spd)
 			local r = R * (0.18 + 0.82 * f)
 			local ang = (a - 1) * math.pi * 2 / arms + f * 3.4
 			local col = cols[1]:Lerp(cols[2], f)
-			local dot = b:neon("Star", math.max(0.09, 0.3 * (1 - f * 0.65)), at, col, f * 0.35)
+			local dot = b:neon("Star", math.max(0.09, 0.3 * (1 - f * 0.65)) * math.clamp(R / 1.6, 1, 1.8), at, col, f * 0.35)
 			b:anim(dot, { Piv = piv, Rel = CFrame.new(r, 0, 0), Spd = spd, Ph = ang })
 		end
 	end
@@ -389,6 +418,23 @@ end
 local function planet(b, piv, R, d, color, material, spd, ph)
 	local p = b:ball("Planet", d, piv, color, material or Enum.Material.SmoothPlastic)
 	b:orbit(p, piv, R, spd, ph)
+	-- glowing energy trail behind it (Rare and up)
+	if not b.ghost and not b.icon and (b.tier or 0) >= 3 and Stardust.Tex.Trail ~= "" then
+		local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
+		a0.Position, a1.Position = Vector3.new(0, d * 0.35, 0), Vector3.new(0, -d * 0.35, 0)
+		a0.Parent, a1.Parent = p, p
+		local tr = Instance.new("Trail")
+		tr.Attachment0, tr.Attachment1 = a0, a1
+		tr.Texture = Stardust.Tex.Trail
+		tr.TextureMode = Enum.TextureMode.Stretch
+		tr.Lifetime = 0.35 + b.tier * 0.04
+		tr.LightEmission = 1
+		tr.LightInfluence = 0
+		tr.FaceCamera = true
+		tr.Color = seq(C.White, color)
+		tr.Transparency = NumberSequence.new(0.15, 1)
+		tr.Parent = p
+	end
 	return p
 end
 
@@ -892,6 +938,251 @@ Designs.sprinkler_celestial = function(b)
 end
 
 ---------------------------------------------------------------------
+-- THE STARDUST LINE: eight cosmic machines, each with its own shape, colours and stardust
+---------------------------------------------------------------------
+
+-- EPIC: Galaxy Stardust - a spinning spiral galaxy held flat on a glass pillar, checkered outer track
+Designs.sprinkler_galaxystardust = function(b)
+	local top = pedestal(b, { W = 3.0, H = 2.1, Tiers = 2, Glass = true, Core = C.Blue, Accent = C.Purple, Trim = rgb(28, 24, 48), Metal = rgb(30, 28, 50), ColD = 0.95, Bands = 2 })
+	local cy = top + 1.4
+	local at = Vector3.new(0, cy, 0)
+	local t = tilt(14, 6)
+	b:neon("Core", 0.75, at, C.White)
+	b:cyl("Stem", 1.3, 0.22, cy - 0.75, C.Purple, Enum.Material.Neon, { Transparency = 0.2 })
+	local halo = b:ball("CoreHalo", 1.1, at, C.Purple, Enum.Material.ForceField)
+	b:anim(halo, { Rel = CFrame.new(at), Pulse = 0.1, PulseSpd = 2 })
+	galaxy(b, at, 2.3, 2, 11, { C.Pink, C.Blue }, t, 0.5)
+	b:ring(2.0, 1.5, 0.03, C.Purple, 0.55, { Piv = CFrame.new(at) * t, Spd = 0.5 })
+	b:ring(1.1, 0.9, 0.04, C.Pink, 0.45, { Piv = CFrame.new(at) * t, Spd = 0.5 })
+	b:ring(2.45, 0.2, 0.05, C.Blue, 0.2, { Piv = CFrame.new(at) * t, Spd = 0.5 })
+	-- checkered outer track
+	local piv = CFrame.new(at) * t
+	b:track(2.85, C.Metal, C.Purple, { Piv = piv, Spd = -0.3, Width = 0.24 })
+	for i = 1, 12 do
+		local p = b:part("Check", Enum.PartType.Block, Vector3.new(0.24, 0.2, 0.55), piv, i % 2 == 0 and C.White or C.Purple, i % 2 == 0 and Enum.Material.SmoothPlastic or Enum.Material.Neon)
+		b:anim(p, { Piv = piv, Rel = CFrame.new(2.73, 0, 0), Spd = -0.3, Ph = (i - 1) * math.pi / 6 })
+	end
+	local oc = { C.Blue, C.Purple, C.White, C.Pink, C.Blue }
+	for i = 1, 5 do
+		planet(b, piv, 2.73, 0.36 + (i % 2) * 0.08, oc[i], Enum.Material.Neon, -0.3, i * 1.25 + 0.3)
+	end
+	return { Core = cy }
+end
+
+-- LEGENDARY: Solar Stardust - a blazing sun with a flame crown, two golden rings of blue worlds
+Designs.sprinkler_solarstardust = function(b)
+	local top = pedestal(b, { W = 3.1, H = 2.2, Tiers = 2, Glass = true, Core = C.Gold, Accent = C.Gold, Trim = C.GoldMetal, Metal = rgb(40, 32, 20), ColD = 1.0, Bands = 2, BandColor = C.GoldMetal, Fins = 4 })
+	local cy = top + 1.05
+	local at = Vector3.new(0, cy, 0)
+	local sun = star(b, at, 1.55, C.Yellow, C.Orange)
+	b:emitter(sun, { Texture = FIRE, Color = seq(C.Yellow, C.Fire), Size = NumberSequence.new(0.9, 0.2), Transparency = NumberSequence.new(0.35, 1), Lifetime = NumberRange.new(0.5, 0.8), Speed = NumberRange.new(0.6, 1.2), Rate = 16, Shape = Enum.ParticleEmitterShape.Sphere })
+	-- corona: flame spikes all round + a tall one on top
+	for i = 1, 10 do
+		local a = (i - 1) * math.pi * 2 / 10
+		local rel = CFrame.Angles(0, a, 0) * CFrame.Angles(0, 0, math.rad(-70 + (i % 2) * 25)) * CFrame.new(0, 0.7, 0)
+		b:crystal(CFrame.new(at) * rel, 0.45 + (i % 2) * 0.25, 0.2, i % 2 == 0 and C.Yellow or C.Orange, { Anim = { Piv = CFrame.new(at), Rel = rel, Spd = 0.6 } })
+	end
+	b:crystal(CFrame.new(0, cy + 0.65, 0), 1.0, 0.3, C.Yellow, { Anim = { Piv = CFrame.new(0, cy + 0.65, 0), Rel = CFrame.new(), Spd = 1, Bob = 0.08 } })
+	local r1, r2 = CFrame.new(at) * tilt(10, 6), CFrame.new(at) * tilt(-14, -10)
+	b:track(2.25, C.GoldMetal, C.Gold, { Piv = r1, Spd = 0.3, Width = 0.26 })
+	b:teeth(10, r1, 2.12, Vector3.new(0.12, 0.24, 0.26), C.Yellow, Enum.Material.Neon, 0.3)
+	b:track(2.75, C.GoldMetal, C.Orange, { Piv = r2, Spd = -0.22, Width = 0.2 })
+	for i = 1, 6 do
+		planet(b, r1, 2.12, 0.36, i % 3 == 0 and C.Cyan or C.Blue, nil, 0.3, i * math.pi / 3)
+	end
+	local pc = { C.Orange, C.Red, C.Blue, C.White }
+	for i = 1, 4 do
+		planet(b, r2, 2.62, 0.42, pc[i], nil, -0.22, i * math.pi / 2 + 0.4)
+	end
+	return { Core = cy }
+end
+
+-- MYTHIC: Black Hole Stardust - a magenta black hole in a storm of debris, a ring of rocks round the pillar
+Designs.sprinkler_blackholestardust = function(b)
+	local top = pedestal(b, { W = 3.5, H = 2.5, Tiers = 3, Accent = C.Magenta, Trim = rgb(30, 14, 40), Metal = rgb(36, 18, 48), ColD = 1.05, Bands = 2, Spikes = 6, SpikeColor = rgb(40, 16, 56) })
+	local cy = top + 1.55
+	local at = Vector3.new(0, cy, 0)
+	blackHole(b, at, 1.9, { rgb(255, 210, 245), C.Magenta, C.Purple }, tilt(12, -4), 3.6)
+	b:ring(2.3, 0.75, 0.06, C.Magenta, 0, { Piv = CFrame.new(at) * tilt(12, -4) })
+	b:track(4.0, C.Metal, C.Magenta, { Piv = CFrame.new(at) * tilt(-8, 12), Spd = -0.2, Width = 0.22 })
+	for i = 1, 14 do
+		rock(b, CFrame.new(at) * tilt(12 + (i % 4) * 5 - 8, -4 + (i % 3) * 6), 2.4 + (i % 5) * 0.35, 0.24 + (i % 3) * 0.12, 0.5 + (i % 4) * 0.18, i * 0.45)
+	end
+	for i = 1, 6 do
+		rock(b, CFrame.new(0, 1.2, 0), 1.7, 0.3 + (i % 2) * 0.1, 0.7, i * math.pi / 3)
+	end
+	return { Core = cy }
+end
+
+-- DIVINE: Nebula Stardust - a glowing nebula with a crystal heart, a halo of floating crystals
+Designs.sprinkler_nebulastardust = function(b)
+	local top = pedestal(b, { W = 3.8, H = 2.6, Tiers = 3, Glass = true, Core = C.Cyan, Accent = C.Cyan, Trim = rgb(20, 36, 60), Metal = rgb(22, 30, 52), ColD = 1.1, Bands = 3, BandColor = C.Silver, Spikes = 6, SpikeColor = rgb(30, 50, 90) })
+	local cy = top + 1.4
+	local at = Vector3.new(0, cy, 0)
+	local puffs = {
+		{ Vector3.new(0, 0, 0), 2.0, C.Blue }, { Vector3.new(0.75, 0.3, 0.2), 1.35, C.Cyan }, { Vector3.new(-0.7, 0.25, -0.35), 1.3, C.Pink },
+		{ Vector3.new(0.15, 0.7, -0.5), 1.15, C.Purple }, { Vector3.new(-0.3, -0.45, 0.6), 1.2, C.Cyan }, { Vector3.new(0.55, -0.35, -0.6), 1.05, C.Blue },
+		{ Vector3.new(-0.6, 0.55, 0.45), 1.0, C.Pink }, { Vector3.new(0.4, 0.2, 0.75), 1.0, C.Cyan },
+	}
+	for i, p in ipairs(puffs) do
+		local puff = b:ball("Cloud", p[2], at + p[1], p[3], Enum.Material.ForceField)
+		b:anim(puff, { Piv = CFrame.new(at), Rel = CFrame.new(p[1]), Spd = 0.2, Bob = 0.15, BobSpd = 0.9 + i * 0.15, Ph = i, Pulse = 0.08, PulseSpd = 1 + i * 0.12 })
+	end
+	local glow = b:neon("NebulaGlow", 1.6, at, C.Cyan, 0.6)
+	b:light(glow, C.Cyan, 18, 2.4)
+	b:emitter(glow, { Texture = SMOKE, Color = seq(C.Cyan, C.Pink), Size = NumberSequence.new(1.6, 2.8), Transparency = NumberSequence.new(0.65, 1), Lifetime = NumberRange.new(2.5, 3.5), Speed = NumberRange.new(0.2, 0.5), Rate = 7, Shape = Enum.ParticleEmitterShape.Sphere })
+	b:crystal(CFrame.new(0, cy - 0.7, 0), 1.6, 0.42, C.Cyan, { Anim = { Piv = CFrame.new(0, cy - 0.7, 0), Rel = CFrame.new(), Spd = 0.6, Bob = 0.1 } })
+	-- halo of floating crystals
+	for i = 1, 8 do
+		local a = (i - 1) * math.pi / 4
+		b:crystal(CFrame.new(at), 0.7 + (i % 2) * 0.3, 0.22, i % 2 == 0 and C.Cyan or C.Blue, { Anim = { Piv = CFrame.new(at) * tilt(10, -6), Rel = CFrame.new(2.6, -0.4, 0), Spd = 0.3, Ph = a, Bob = 0.18, BobSpd = 1.4 } })
+	end
+	local piv = CFrame.new(at) * tilt(-12, 10)
+	b:track(3.1, C.Silver, C.Cyan, { Piv = piv, Spd = -0.25, Width = 0.18 })
+	for i = 1, 6 do
+		planet(b, piv, 3.0, 0.34, i % 2 == 0 and C.Pink or C.Cyan, Enum.Material.Neon, -0.25, i * math.pi / 3)
+	end
+	return { Core = cy }
+end
+
+-- CELESTIAL: Supernova Stardust - a white-gold star exploding into crystal spikes, a lance of light on top
+Designs.sprinkler_supernovastardust = function(b)
+	local top = pedestal(b, { W = 4.0, H = 2.8, Tiers = 3, Glass = true, Core = C.Pink, Accent = C.Gold, Trim = C.GoldMetal, Metal = rgb(44, 30, 40), ColD = 1.15, Bands = 3, BandColor = C.GoldMetal, Spikes = 8, SpikeColor = C.GoldMetal })
+	local cy = top + 1.7
+	local at = Vector3.new(0, cy, 0)
+	star(b, at, 1.6, C.White, C.Gold)
+	local n = 14
+	for i = 1, n do
+		local phi = math.acos(1 - 2 * (i - 0.5) / n)
+		local theta = math.pi * (1 + 5 ^ 0.5) * i
+		local d = Vector3.new(math.sin(phi) * math.cos(theta), math.cos(phi), math.sin(phi) * math.sin(theta))
+		local rel = CFrame.lookAt(Vector3.zero, d) * CFrame.Angles(math.rad(-90), 0, 0) * CFrame.new(0, 0.7, 0)
+		local col = ({ C.Gold, C.Pink, C.White })[(i % 3) + 1]
+		b:crystal(CFrame.new(at) * rel, 1.0 + (i % 3) * 0.4, 0.26, col, { Anim = { Piv = CFrame.new(at), Rel = rel, Spd = 0.3 } })
+	end
+	b:crystal(CFrame.new(0, cy + 0.8, 0), 2.4, 0.4, C.Gold, { Anim = { Piv = CFrame.new(0, cy + 0.8, 0), Rel = CFrame.new(), Spd = 0.8, Bob = 0.12 } })
+	local r1, r2 = CFrame.new(at) * tilt(16, 8), CFrame.new(at) * tilt(-12, -14)
+	b:track(3.3, C.GoldMetal, C.Gold, { Piv = r1, Spd = 0.3, Width = 0.26, Thick = 0.18 })
+	b:track(3.8, C.Silver, C.Pink, { Piv = r2, Spd = -0.22, Width = 0.22 })
+	for i = 1, 8 do
+		local ring, R = (i % 2 == 0) and r1 or r2, (i % 2 == 0) and 3.17 or 3.67
+		planet(b, ring, R, 0.4, ({ C.Cyan, C.Pink, C.Gold, C.White })[(i % 4) + 1], Enum.Material.Neon, (i % 2 == 0) and 0.3 or -0.22, i * 0.78)
+	end
+	local glow = b:neon("NovaGlow", 3.0, at, C.Gold, 0.9)
+	b:anim(glow, { Rel = CFrame.new(at), Pulse = 0.2, PulseSpd = 2.2 })
+	return { Core = cy }
+end
+
+-- CELESTIAL: Celestial Stardust - a heavenly orb in a silver armillary, feathered wings, a halo with a living constellation
+Designs.sprinkler_celestialstardust = function(b)
+	local top = pedestal(b, { W = 4.0, H = 3.0, Tiers = 3, Glass = true, Core = rgb(200, 250, 255), Accent = rgb(170, 220, 255), Trim = C.Silver, Metal = rgb(230, 234, 245), ColD = 1.15, Bands = 3, BandColor = C.GoldMetal, Spikes = 8, SpikeColor = C.Silver })
+	local cy = top + 1.6
+	local at = Vector3.new(0, cy, 0)
+	star(b, at, 1.3, C.White, C.Cyan)
+	b:ring(1.6, 0.13, 0.12, C.Silver, 0, { Piv = CFrame.new(at), Rel = CFrame.new(), Ax = Vector3.xAxis, Spd = 0.5 })
+	b:ring(1.8, 0.13, 0.12, C.Gold, 0, { Piv = CFrame.new(at), Rel = CFrame.Angles(0, 0, math.rad(90)), Ax = Vector3.zAxis, Spd = -0.4 })
+	b:ring(2.0, 0.13, 0.12, C.Silver, 0, { Piv = CFrame.new(at) * tilt(10, 0), Spd = 0.3 })
+	-- wings: two fans of feathers that gently rise and fall
+	for side = -1, 1, 2 do
+		for i = 1, 6 do
+			local f = (i - 1) / 5
+			local rel = CFrame.new(side * (1.3 + f * 0.25), 0.2 + f * 0.25, -0.3) * CFrame.Angles(0, 0, side * math.rad(-25 - f * 55)) * CFrame.new(0, 0.9 + f * 0.35, 0)
+			local feather = b:part("Feather", Enum.PartType.Block, Vector3.new(0.3, 1.6 + f * 0.7, 0.08), CFrame.new(at) * rel, i % 2 == 0 and C.White or rgb(200, 235, 255), Enum.Material.Neon, { Transparency = 0.15 })
+			b:anim(feather, { Rel = CFrame.new(at) * rel, Bob = 0.12, BobSpd = 1.2, Ph = side })
+		end
+	end
+	-- halo with gems linked into a turning constellation
+	local halo = CFrame.new(0, cy + 2.1, 0)
+	b:track(2.1, C.GoldMetal, C.White, { Piv = halo, Spd = 0.25, Width = 0.2 })
+	local gems = {}
+	for i = 1, 7 do
+		local g = b:gem(halo, 0.3, i % 2 == 0 and C.Gold or C.Cyan)
+		b:orbit(g, halo, 1.5 + (i % 3) * 0.3, 0.25, i * 0.9, { Self = 2 })
+		table.insert(gems, g)
+	end
+	if not b.ghost and not b.icon then
+		for i = 1, #gems - 1 do
+			local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
+			a0.Parent, a1.Parent = gems[i], gems[i + 1]
+			local line = Instance.new("Beam")
+			line.Attachment0, line.Attachment1 = a0, a1
+			line.Width0, line.Width1 = 0.06, 0.06
+			line.LightEmission = 1
+			line.FaceCamera = true
+			line.Color = seq(C.White, C.Cyan)
+			line.Transparency = NumberSequence.new(0.25)
+			line.Parent = gems[i]
+		end
+	end
+	local glow = b:neon("CelestialGlow", 3.6, at, C.Cyan, 0.92)
+	b:anim(glow, { Rel = CFrame.new(at), Pulse = 0.1, PulseSpd = 1.2 })
+	return { Core = cy }
+end
+
+-- COSMIC: Quantum Stardust - nested wireframe cubes turning on different axes, orbiting voxels, green neon lattice
+local function wireCube(b, at, size, thick, color, ax, spd)
+	local h = size / 2
+	local edges = {}
+	for _, a in ipairs({ -h, h }) do
+		for _, c in ipairs({ -h, h }) do
+			table.insert(edges, { Vector3.new(0, a, c), Vector3.new(size, thick, thick) })
+			table.insert(edges, { Vector3.new(a, 0, c), Vector3.new(thick, size, thick) })
+			table.insert(edges, { Vector3.new(a, c, 0), Vector3.new(thick, thick, size) })
+		end
+	end
+	for _, e in ipairs(edges) do
+		local p = b:part("Edge", Enum.PartType.Block, e[2] + Vector3.new(thick, thick, thick) * 0, CFrame.new(at + e[1]), color, Enum.Material.Neon)
+		b:anim(p, { Piv = CFrame.new(at), Rel = CFrame.new(e[1]), Ax = ax, Spd = spd })
+	end
+end
+
+Designs.sprinkler_quantumstardust = function(b)
+	local top = pedestal(b, { W = 4.0, H = 3.0, Tiers = 3, Glass = true, Core = C.Green, Accent = C.Green, Trim = rgb(14, 30, 20), Metal = rgb(16, 28, 22), ColD = 1.15, Bands = 3, Spikes = 8, SpikeColor = rgb(20, 50, 30), Fins = 6 })
+	local cy = top + 1.6
+	local at = Vector3.new(0, cy, 0)
+	wireCube(b, at, 2.1, 0.12, C.Green, Vector3.new(1, 1, 0).Unit, 0.6)
+	wireCube(b, at, 1.3, 0.09, C.Teal, Vector3.new(0, 1, 1).Unit, -0.9)
+	local core = b:gem(CFrame.new(at), 0.75, C.Teal)
+	b:anim(core, { Rel = CFrame.new(at) * CFrame.Angles(math.rad(45), 0, math.rad(35.264)), Ax = Y, Spd = 1.5, Pulse = 0.15, PulseSpd = 4 })
+	b:light(core, C.Green, 18, 2.4)
+	b:ball("Field", 2.8, at, C.Green, Enum.Material.ForceField)
+	-- lattice rings with voxels
+	local r1, r2 = CFrame.new(at) * tilt(14, 10), CFrame.new(at) * tilt(-16, -8)
+	b:track(2.9, C.Metal, C.Green, { Piv = r1, Spd = 0.35, Width = 0.24 })
+	b:teeth(12, r1, 2.78, Vector3.new(0.22, 0.22, 0.22), rgb(190, 255, 80), Enum.Material.Neon, 0.35)
+	b:track(3.4, C.Metal, C.Teal, { Piv = r2, Spd = -0.25, Width = 0.2 })
+	for i = 1, 10 do
+		local v = b:part("Voxel", Enum.PartType.Block, Vector3.one * (0.26 + (i % 3) * 0.08), CFrame.new(at), i % 2 == 0 and C.Green or C.Teal, Enum.Material.Neon, { Transparency = 0.1 })
+		b:orbit(v, i % 2 == 0 and r2 or CFrame.new(at) * tilt(30 - i * 4, 20), i % 2 == 0 and 3.28 or 2.2 + (i % 3) * 0.3, i % 2 == 0 and -0.25 or 0.6, i * 0.63, { Self = 2.2 })
+	end
+	b:crystal(CFrame.new(0, cy + 1.25, 0), 1.2, 0.34, C.Teal, { Anim = { Piv = CFrame.new(0, cy + 1.25, 0), Rel = CFrame.new(), Spd = -1, Bob = 0.1 } })
+	return { Core = cy }
+end
+
+-- LIMITED: Void Stardust - an obsidian crown of spires around a violet black hole, dark matter swirling
+Designs.sprinkler_voidstardust = function(b)
+	local top = pedestal(b, { W = 4.2, H = 3.0, Tiers = 3, Accent = C.Violet, Trim = rgb(10, 6, 16), Metal = rgb(16, 10, 26), ColD = 1.2, Bands = 2, Spikes = 8, SpikeColor = rgb(20, 10, 30), Fins = 6 })
+	local cy = top + 1.7
+	local at = Vector3.new(0, cy, 0)
+	blackHole(b, at, 2.0, { rgb(230, 210, 255), C.Violet, rgb(60, 20, 120) }, tilt(10, -6), 3.4)
+	b:ball("VoidField", 4.2, at, C.Violet, Enum.Material.ForceField)
+	-- obsidian spires leaning out from the core
+	for i = 1, 6 do
+		local a = (i - 1) * math.pi / 3 + 0.3
+		local base = CFrame.new(math.cos(a) * 1.7, cy - 1.0, math.sin(a) * 1.7) * CFrame.Angles(math.sin(a) * 0.28, 0, -math.cos(a) * 0.28)
+		b:crystal(base, 2.6 + (i % 2) * 0.6, 0.38, rgb(26, 12, 44), { Glass = true, Transparency = 0 })
+		b:neon("SpireTip", 0.26, base * CFrame.new(0, 2.7 + (i % 2) * 0.6, 0), C.Violet)
+	end
+	b:track(3.9, rgb(30, 16, 50), C.Violet, { Piv = CFrame.new(at) * tilt(-10, 12), Spd = -0.2, Width = 0.24 })
+	for i = 1, 12 do
+		rock(b, CFrame.new(at) * tilt(10 + (i % 3) * 6, -6 + (i % 4) * 4), 2.6 + (i % 4) * 0.4, 0.26 + (i % 3) * 0.1, 0.4 + (i % 3) * 0.15, i * 0.52)
+	end
+	local wisps = b:neon("VoidWisps", 3.2, at, C.Violet, 0.96)
+	b:emitter(wisps, { Texture = SMOKE, LightEmission = 0, Color = seq(rgb(30, 10, 50), rgb(70, 30, 120)), Size = NumberSequence.new(1.2, 2.4), Transparency = NumberSequence.new(0.55, 1), Lifetime = NumberRange.new(1.5, 2.5), Speed = NumberRange.new(0.8, 1.4), Rate = 8, Shape = Enum.ParticleEmitterShape.Sphere, ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface, ShapeInOut = Enum.ParticleEmitterShapeInOut.Inward })
+	return { Core = cy }
+end
+
+---------------------------------------------------------------------
 -- Effects per sprinkler (SprinklerClient reads these)
 --   Nozzles  how many streams of stardust spray out
 --   Circle   colour of the coverage circle once placed
@@ -920,6 +1211,15 @@ local FX = {
 	sprinkler_cosmicsupreme = { Nozzles = 8, Circle = C.Purple, Wave = 3, Beams = 8, Aura = 18, Nova = 6, Burst = 6 },
 	sprinkler_divine = { Nozzles = 8, Circle = C.Gold, Wave = 2.5, Beams = 10, Aura = 22, Nova = 5, Burst = 7 },
 	sprinkler_celestial = { Nozzles = 8, Circle = C.Cyan, Wave = 2, Beams = 12, Aura = 28, Nova = 4, Burst = 8 },
+	-- the Stardust line
+	sprinkler_galaxystardust = { Nozzles = 5, Circle = C.Purple, Wave = 4, Beams = 5, Aura = 14, Burst = 5 },
+	sprinkler_solarstardust = { Nozzles = 6, Circle = C.Gold, Wave = 3.5, Beams = 7, Aura = 16, Burst = 5 },
+	sprinkler_blackholestardust = { Nozzles = 6, Circle = C.Magenta, Wave = 3, Beams = 8, Aura = 18, Nova = 7, Burst = 6 },
+	sprinkler_nebulastardust = { Nozzles = 7, Circle = C.Cyan, Wave = 3, Beams = 9, Aura = 22, Burst = 7 },
+	sprinkler_supernovastardust = { Nozzles = 8, Circle = C.Gold, Wave = 2.5, Beams = 11, Aura = 26, Nova = 4, Burst = 8 },
+	sprinkler_celestialstardust = { Nozzles = 8, Circle = rgb(200, 250, 255), Wave = 2.5, Beams = 12, Aura = 28, Nova = 5, Burst = 8 },
+	sprinkler_quantumstardust = { Nozzles = 8, Circle = C.Green, Wave = 2, Beams = 12, Aura = 30, Nova = 4, Burst = 9 },
+	sprinkler_voidstardust = { Nozzles = 8, Circle = C.Violet, Wave = 2, Beams = 14, Aura = 32, Nova = 3.5, Burst = 10 },
 }
 
 function SprinklerModel.Fx(gearId)
@@ -934,8 +1234,22 @@ function SprinklerModel.Build(gear, cf, ghost, icon)
 	model.Name = ghost and "SprinklerPreview" or gear.Name
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	local b = newBuilder(model, cf, ghost, icon)
+	b.tier = SprinklerModel.RarityTier[gear.Rarity] or 2
+	b.style = Stardust.Get(gear.Id)
 	local design = Designs[gear.Id] or Designs.sprinkler_stardust
 	local info = design(b, gear)
+
+	-- a cloud of the sprinkler's own neon stardust floating around the whole machine
+	if not ghost and not icon then
+		local shell = b:part("StardustCloud", Enum.PartType.Ball, Vector3.one * (3 + b.tier * 0.5), CFrame.new(0, info.Core, 0), C.Dark, nil, { Transparency = 1 })
+		local e = Stardust.Emitter(b.style.Aura, b.style.Palette, {
+			Shape = Enum.ParticleEmitterShape.Sphere, ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.25, 0.22 + b.tier * 0.03), NumberSequenceKeypoint.new(1, 0) }),
+			Lifetime = NumberRange.new(1.8, 3), Speed = NumberRange.new(0.15, 0.5), Drag = 1, Rate = 3 + b.tier * 2.2,
+		})
+		e.Name = "SFX"
+		e.Parent = shell
+	end
 
 	-- the nozzle head the stardust sprays from (invisible; the client spins it)
 	local head = b:part("Head", Enum.PartType.Ball, Vector3.new(0.5, 0.5, 0.5), CFrame.new(0, info.Core, 0), C.Dark, nil, { Transparency = 1 })

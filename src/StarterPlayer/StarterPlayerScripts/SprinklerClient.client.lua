@@ -5,11 +5,13 @@
 	  mouse over your garden beds (green = OK, red = can't place there); your planets inside the
 	  circle light up green. Click to place. Phones: tap to move it, tap inside the circle to place.
 	  Unequip to cancel.
-	* Placed sprinklers: orbit rings turn, planets orbit, a soft green circle shows what it covers.
-	* Placed sprinklers: the head spins and sprays arcs of stardust.
-	* Planets in range: stardust floats around them. BLACK HOLES suck the stardust in.
+	* Placed sprinklers: rings turn, planets orbit, energy flows; they spray arcs of their own
+	  stardust (Stardust module) and it spreads over the whole circle: motes rising, plus galaxies /
+	  nebulae / stars / quantum glyphs / void vortexes on the ground, a glowing ground ring, waves,
+	  light beams and supernova flashes depending on the sprinkler. Far away: only the model glows.
+	* Planets in range: that sprinkler's stardust floats around them. BLACK HOLES suck it in.
 
-	Needs: SprinklerServer, GearCatalog.
+	Needs: SprinklerServer, GearCatalog, SprinklerModel, Stardust.
 ]]
 
 local Players = game:GetService("Players")
@@ -23,12 +25,13 @@ local mouse = player:GetMouse()
 local GearCatalog = require(ReplicatedStorage:WaitForChild("GearCatalog"))
 local PlanetCatalog = require(ReplicatedStorage:WaitForChild("PlanetCatalog"))
 local SprinklerModel = require(ReplicatedStorage:WaitForChild("SprinklerModel"))
+local Stardust = require(ReplicatedStorage:WaitForChild("Stardust"))
 local remotes = ReplicatedStorage:WaitForChild("PlanetRemotes")
 local placeRemote = remotes:WaitForChild("PlaceGear", 30)
 
 local PAD_TAG = "GardenPad"
-local SPARKLE = "rbxasset://textures/particles/sparkles_main.dds"
 local SHOW_DISTANCE = 200
+local DETAIL_DISTANCE = 110 -- ground effects, beams and waves only this close (keeps phones smooth)
 local GRAVITY = 30 -- how fast the stardust arcs fall
 
 local fxFolder = Instance.new("Folder")
@@ -51,13 +54,29 @@ local function invisiblePart(name, size, cframe, shape)
 	return p
 end
 
+-- a big soft glow ring lying on the ground (our own texture), slowly turning
+local function groundGlow(parent, radius, color, transparency)
+	if Stardust.Tex.Ground == "" then
+		return nil
+	end
+	local p = invisiblePart("GroundGlow", Vector3.new(radius * 2, 0.05, radius * 2), CFrame.new())
+	p.Parent = parent
+	local d = Instance.new("Decal")
+	d.Face = Enum.NormalId.Top
+	d.Texture = Stardust.Tex.Ground
+	d.Color3 = color
+	d.Transparency = transparency
+	d.Parent = p
+	return p
+end
+
 ---------------------------------------------------------------------
 -- Placing: see-through sprinkler + range circle + highlight on the planets it will reach
 ---------------------------------------------------------------------
 local camera = workspace.CurrentCamera
 local ghost, ghostCircle, ghostGear = nil, nil, nil
 local ghostSpot, ghostPad = nil, nil
-local ghostAccent, ghostOk, ghostAura = nil, nil, nil
+local ghostAccent, ghostOk, ghostAura, ghostGlow = nil, nil, nil, nil
 local touchPoint = nil -- mobile: where the player last tapped in the world
 local highlights = {} -- planet model -> Highlight
 local MAX_HIGHLIGHTS = 25 -- Roblox only draws about 31 highlights at once
@@ -80,7 +99,7 @@ local function clearGhost()
 		ghostCircle:Destroy()
 	end
 	clearHighlights()
-	ghost, ghostCircle, ghostGear, ghostSpot, ghostPad, touchPoint, ghostAura = nil, nil, nil, nil, nil, nil, nil
+	ghost, ghostCircle, ghostGear, ghostSpot, ghostPad, touchPoint, ghostAura, ghostGlow = nil, nil, nil, nil, nil, nil, nil, nil
 end
 
 local function makeGhost(gear)
@@ -92,13 +111,14 @@ local function makeGhost(gear)
 	ghostCircle:SetLook(0.78, 0.05, 0.3)
 	ghostAccent = SprinklerModel.RarityColor[gear.Rarity] or SprinklerModel.GREEN
 	ghostOk = nil
+	ghostGlow = groundGlow(ghostCircle.Part, gear.Radius, ghostAccent, 0.35)
 	-- Epic and up: their sparkles already dance inside the preview circle
 	local tier = SprinklerModel.RarityTier[gear.Rarity] or 1
 	if tier >= 4 then
 		local disc = invisiblePart("PreviewAura", Vector3.new(gear.Radius * 1.9, 0.2, gear.Radius * 1.9), CFrame.new())
 		disc.Parent = ghostCircle.Part
 		local e = Instance.new("ParticleEmitter")
-		e.Texture = SPARKLE
+		e.Texture = Stardust.Texture("Star")
 		e.LightEmission = 1
 		e.LightInfluence = 0
 		e.Shape = Enum.ParticleEmitterShape.Disc
@@ -279,6 +299,9 @@ RunService.RenderStepped:Connect(function()
 	if ghostAura then
 		ghostAura.CFrame = CFrame.new(spot + Vector3.new(0, 0.3, 0))
 	end
+	if ghostGlow then
+		ghostGlow.CFrame = CFrame.new(spot + Vector3.new(0, 0.09, 0)) * CFrame.Angles(0, os.clock() * 0.3, 0)
+	end
 	if ok ~= ghostOk then
 		-- green = can place, red = can't; the inner line shows the sprinkler's rarity colour
 		ghostOk = ok
@@ -305,25 +328,52 @@ end)
 local sprinklers = {} -- model -> state (see setupSprinkler)
 local scriptStart = os.clock()
 
-local function sprayEmitter(nozzle, color, radius, height)
-	-- aimed up and out, fast enough that the arc lands near the edge of its range
+local function sprayEmitter(nozzle, style, radius, height, nozzles, tier)
+	-- arcs of the sprinkler's own stardust, fast enough to land near the edge of its range
 	local speed = math.sqrt(radius * GRAVITY) * 0.95 * math.clamp(1 - height / (radius * 3), 0.6, 1)
-	local e = Instance.new("ParticleEmitter")
-	e.Texture = SPARKLE
-	e.LightEmission = 1
-	e.LightInfluence = 0
-	e.Color = ColorSequence.new(Color3.new(1, 1, 1), color)
-	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.45), NumberSequenceKeypoint.new(1, 0.15) })
-	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.8, 0.1), NumberSequenceKeypoint.new(1, 1) })
-	e.Lifetime = NumberRange.new(1.1, 1.4)
-	e.Speed = NumberRange.new(speed * 0.55, speed)
-	e.SpreadAngle = Vector2.new(6, 6)
-	e.Acceleration = Vector3.new(0, -GRAVITY, 0)
-	e.Rate = 26
-	e.RotSpeed = NumberRange.new(-180, 180)
-	e.Rotation = NumberRange.new(0, 360)
-	e.EmissionDirection = Enum.NormalId.Front
+	local big = style.Spray == "Galaxy" or style.Spray == "Quantum" or style.Spray == "Wisp"
+	local size = (big and 0.75 or 0.5) + tier * 0.03
+	local e = Stardust.Emitter(style.Spray, style.Palette, {
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, size), NumberSequenceKeypoint.new(1, size * 0.35) }),
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.8, 0.1), NumberSequenceKeypoint.new(1, 1) }),
+		Lifetime = NumberRange.new(1.1, 1.4),
+		Speed = NumberRange.new(speed * 0.55, speed),
+		SpreadAngle = Vector2.new(6, 6),
+		Acceleration = Vector3.new(0, -GRAVITY, 0),
+		Rate = math.clamp(84 / nozzles, 10, 26), -- more nozzles = fewer particles each, same total
+		RotSpeed = NumberRange.new(-180, 180),
+		EmissionDirection = Enum.NormalId.Front,
+	})
 	e.Parent = nozzle
+	return e
+end
+
+-- what lies on the ground inside the circle, per style (flat particles facing up)
+local GROUND = {
+	spin = { Size = { 1.6, 3.2 }, Life = { 4, 6 }, Rot = 25, Rate = 0.35, Base = 1.2, Fade = 0.3 },
+	drift = { Size = { 3, 5 }, Life = { 4.5, 6 }, Rot = 8, Rate = 0.3, Base = 1, Fade = 0.55 },
+	flare = { Size = { 0.9, 1.7 }, Life = { 1, 1.8 }, Rot = 40, Rate = 0.6, Base = 2, Fade = 0.1 },
+	flicker = { Size = { 0.9, 1.5 }, Life = { 0.45, 0.9 }, Rot = 0, Rate = 0.6, Base = 3, Fade = 0.1 },
+	void = { Size = { 1.6, 2.8 }, Life = { 3, 4 }, Rot = 70, Rate = 0.3, Base = 1, Fade = 0.25 },
+}
+
+local function groundEmitter(parent, style, tier)
+	local g = GROUND[style.Mode]
+	if not g then
+		return nil
+	end
+	local e = Stardust.Emitter(style.Ground, style.Palette, {
+		Orientation = Enum.ParticleOrientation.VelocityPerpendicular,
+		Shape = Enum.ParticleEmitterShape.Disc, ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+		EmissionDirection = Enum.NormalId.Top,
+		Speed = NumberRange.new(0.02, 0.02),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, g.Size[1] * 0.6), NumberSequenceKeypoint.new(0.5, g.Size[2]), NumberSequenceKeypoint.new(1, g.Size[1]) }),
+		Lifetime = NumberRange.new(g.Life[1], g.Life[2]),
+		RotSpeed = NumberRange.new(-g.Rot, g.Rot),
+		Rate = g.Base + tier * g.Rate,
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, g.Fade), NumberSequenceKeypoint.new(0.7, g.Fade), NumberSequenceKeypoint.new(1, 1) }),
+	})
+	e.Parent = parent
 	return e
 end
 
@@ -355,7 +405,7 @@ local function placementBurst(ground, core, radius, color, size)
 	flash.Color = color
 	flash.Transparency = 0.2
 	local e = Instance.new("ParticleEmitter")
-	e.Texture = SPARKLE
+	e.Texture = Stardust.Texture("Star")
 	e.LightEmission = 1
 	e.Color = ColorSequence.new(Color3.new(1, 1, 1), color)
 	e.Size = NumberSequence.new(0.5 + size * 0.06, 0)
@@ -401,6 +451,7 @@ local function setupSprinkler(model)
 	local gearId = model:GetAttribute("GearId")
 	local gear = GearCatalog.Get(gearId or "")
 	local fx = SprinklerModel.Fx(gearId)
+	local style = Stardust.Get(gearId)
 	local tier = SprinklerModel.RarityTier[gear and gear.Rarity or "Uncommon"] or 2
 	local color = model:GetAttribute("DustColor") or Color3.new(1, 1, 1)
 	local accent = fx.Circle or SprinklerModel.GREEN
@@ -408,11 +459,15 @@ local function setupSprinkler(model)
 	local ground = base.Position - Vector3.new(0, base.Size.X / 2, 0)
 	local height = head.Position.Y - ground.Y
 
-	local emitters = {}
+	local emitters, detail = {}, {}
+	local nozzles = {}
 	for _, nozzle in ipairs(head:GetChildren()) do
 		if nozzle:IsA("Attachment") then
-			table.insert(emitters, sprayEmitter(nozzle, color, radius, height))
+			table.insert(nozzles, nozzle)
 		end
+	end
+	for _, nozzle in ipairs(nozzles) do
+		table.insert(emitters, sprayEmitter(nozzle, style, radius, height, #nozzles, tier))
 	end
 	-- the model's own glows/particles (switched off when you're far away)
 	for _, d in ipairs(model:GetDescendants()) do
@@ -435,27 +490,44 @@ local function setupSprinkler(model)
 	local state = {
 		Head = head, Base = base, Emitters = emitters, Angle = math.random() * 6.28, Home = head.CFrame,
 		Circle = circle, Fx = fx, Tier = tier, Accent = accent, Radius = radius, Ground = ground,
+		Detail = detail, GlowAngle = math.random() * 6.28,
 		NextWave = os.clock() + math.random() * 2, NextNova = os.clock() + (fx.Nova or 0), NextBeams = 0,
 	}
 
-	-- sparkles rising from the whole covered area
-	if fx.Aura then
-		local disc = invisiblePart("Aura", Vector3.new(radius * 1.9, 0.2, radius * 1.9), CFrame.new(ground + Vector3.new(0, 0.3, 0)))
-		disc.Parent = circle.Part
-		local e = Instance.new("ParticleEmitter")
-		e.Texture = SPARKLE
-		e.LightEmission = 1
-		e.LightInfluence = 0
-		e.Shape = Enum.ParticleEmitterShape.Disc
-		e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
-		e.EmissionDirection = Enum.NormalId.Top
-		e.Color = ColorSequence.new(Color3.new(1, 1, 1), accent)
-		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.3 + tier * 0.02), NumberSequenceKeypoint.new(1, 0) })
-		e.Lifetime = NumberRange.new(1.4, 2.4)
-		e.Speed = NumberRange.new(0.8, 2)
-		e.Rate = fx.Aura
-		e.Parent = disc
-		table.insert(emitters, e)
+	-- stardust spreading through the whole watering radius: motes drifting up from the ground...
+	local disc = invisiblePart("Aura", Vector3.new(radius * 1.9, 0.2, radius * 1.9), CFrame.new(ground + Vector3.new(0, 0.3, 0)))
+	disc.Parent = circle.Part
+	local rise = Stardust.Emitter(style.Aura == "Nebula" and "Dust" or style.Aura, style.Palette, {
+		Shape = Enum.ParticleEmitterShape.Disc, ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+		EmissionDirection = Enum.NormalId.Top,
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.3 + tier * 0.03), NumberSequenceKeypoint.new(1, 0) }),
+		Lifetime = NumberRange.new(1.6, 2.8),
+		Speed = NumberRange.new(0.6, 1.6),
+		Rate = fx.Aura or (3 + tier * 2),
+	})
+	rise.Parent = disc
+	table.insert(detail, rise)
+	-- ...plus galaxies / nebulae / stars / glyphs / vortexes lying on the ground (Rare and up)
+	if tier >= 3 then
+		local flat = groundEmitter(disc, style, tier)
+		if flat then
+			table.insert(detail, flat)
+		end
+		-- void sprinklers: dark motes sink back into the ground
+		if style.Mode == "void" then
+			local sink = Stardust.Emitter("Dust", { Color3.fromRGB(30, 10, 50), Color3.fromRGB(60, 20, 100), Color3.fromRGB(20, 0, 40) }, {
+				LightEmission = 0, Shape = Enum.ParticleEmitterShape.Disc, ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+				EmissionDirection = Enum.NormalId.Top, Speed = NumberRange.new(0.3, 0.6), Acceleration = Vector3.new(0, -0.8, 0),
+				Size = NumberSequence.new(0.5, 0.2), Lifetime = NumberRange.new(1.5, 2), Rate = 4 + tier,
+			})
+			sink.Parent = disc
+			table.insert(detail, sink)
+		end
+	end
+	local glow = groundGlow(circle.Part, radius, accent, math.clamp(0.55 - tier * 0.04, 0.12, 0.5))
+	if glow then
+		glow.CFrame = CFrame.new(ground + Vector3.new(0, 0.09, 0))
+		state.Glow = glow
 	end
 
 	-- light streams from the core down into the garden
@@ -571,16 +643,14 @@ local function addDust(model)
 	end
 	local planet = PlanetCatalog.Get(model:GetAttribute("PlanetId") or "")
 	local color = model:GetAttribute("StardustColor") or Color3.new(1, 1, 1)
+	local style = Stardust.Get(model:GetAttribute("StardustStyle"))
 	local size = model:GetExtentsSize()
 	local shellRadius = math.clamp(math.max(size.X, size.Z) * 0.6, 2.5, 18)
 	local shell = invisiblePart("StardustShell", Vector3.one * shellRadius * 2, body.CFrame, Enum.PartType.Ball)
 	local isBlackHole = model:GetAttribute("Group") == "BlackHole" or (planet and planet.Group == "BlackHole")
 
-	local e = Instance.new("ParticleEmitter")
-	e.Texture = SPARKLE
-	e.LightEmission = 1
-	e.LightInfluence = 0
-	e.Color = ColorSequence.new(Color3.new(1, 1, 1), color)
+	-- the stardust of whichever sprinkler is watering it
+	local e = Stardust.Emitter(style.Planet, style.Palette)
 	e.Shape = Enum.ParticleEmitterShape.Sphere
 	e.Rotation = NumberRange.new(0, 360)
 	e.RotSpeed = NumberRange.new(-120, 120)
@@ -629,7 +699,9 @@ RunService.Heartbeat:Connect(function(dt)
 			s.Circle:Destroy()
 			sprinklers[model] = nil
 		else
-			local near = (s.Base.Position - camPos).Magnitude <= SHOW_DISTANCE
+			local dist = (s.Base.Position - camPos).Magnitude
+			local near = dist <= SHOW_DISTANCE
+			local close = dist <= DETAIL_DISTANCE
 			if near ~= s.Near then
 				s.Near = near
 				for _, e in ipairs(s.Emitters) do
@@ -637,12 +709,25 @@ RunService.Heartbeat:Connect(function(dt)
 				end
 				s.Circle.Part.Parent = near and fxFolder or nil
 			end
+			if close ~= s.Close then
+				-- far away: keep the model's own glow, drop the ground stardust (saves a lot on phones)
+				s.Close = close
+				for _, e in ipairs(s.Detail) do
+					e.Enabled = close
+				end
+			end
 			if near then
 				local now = os.clock()
 				s.Angle += dt * 2.4
 				s.Head.CFrame = s.Home * CFrame.Angles(0, s.Angle, 0)
 				SprinklerModel.Animate(model, now)
-				updateSprinklerFx(s, now)
+				if close then
+					updateSprinklerFx(s, now)
+					if s.Glow then
+						s.GlowAngle += dt * 0.15
+						s.Glow.CFrame = CFrame.new(s.Ground + Vector3.new(0, 0.09, 0)) * CFrame.Angles(0, s.GlowAngle, 0)
+					end
+				end
 			end
 		end
 	end
