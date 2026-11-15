@@ -73,7 +73,7 @@ local function buildModel(gear, position, ownerId, untilTime)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "Timer"
 	gui.Size = UDim2.fromOffset(170, 40)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, 4.4, 0)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, model:GetAttribute("CoreY") + 3.4, 0) -- above the top of the design
 	gui.MaxDistance = 70
 	gui.LightInfluence = 0
 	gui.Adornee = base

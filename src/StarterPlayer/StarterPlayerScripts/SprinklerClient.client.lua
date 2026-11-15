@@ -57,6 +57,7 @@ end
 local camera = workspace.CurrentCamera
 local ghost, ghostCircle, ghostGear = nil, nil, nil
 local ghostSpot, ghostPad = nil, nil
+local ghostAccent, ghostOk, ghostAura = nil, nil, nil
 local touchPoint = nil -- mobile: where the player last tapped in the world
 local highlights = {} -- planet model -> Highlight
 local MAX_HIGHLIGHTS = 25 -- Roblox only draws about 31 highlights at once
@@ -79,7 +80,7 @@ local function clearGhost()
 		ghostCircle:Destroy()
 	end
 	clearHighlights()
-	ghost, ghostCircle, ghostGear, ghostSpot, ghostPad, touchPoint = nil, nil, nil, nil, nil, nil
+	ghost, ghostCircle, ghostGear, ghostSpot, ghostPad, touchPoint, ghostAura = nil, nil, nil, nil, nil, nil, nil
 end
 
 local function makeGhost(gear)
@@ -88,7 +89,29 @@ local function makeGhost(gear)
 	ghost = SprinklerModel.Build(gear, CFrame.new(0, -500, 0), true)
 	ghost.Parent = fxFolder
 	ghostCircle = SprinklerModel.RangeCircle(gear.Radius, fxFolder)
-	ghostCircle:SetLook(0.78, 0.05, 0.55)
+	ghostCircle:SetLook(0.78, 0.05, 0.3)
+	ghostAccent = SprinklerModel.RarityColor[gear.Rarity] or SprinklerModel.GREEN
+	ghostOk = nil
+	-- Epic and up: their sparkles already dance inside the preview circle
+	local tier = SprinklerModel.RarityTier[gear.Rarity] or 1
+	if tier >= 4 then
+		local disc = invisiblePart("PreviewAura", Vector3.new(gear.Radius * 1.9, 0.2, gear.Radius * 1.9), CFrame.new())
+		disc.Parent = ghostCircle.Part
+		local e = Instance.new("ParticleEmitter")
+		e.Texture = SPARKLE
+		e.LightEmission = 1
+		e.LightInfluence = 0
+		e.Shape = Enum.ParticleEmitterShape.Disc
+		e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+		e.EmissionDirection = Enum.NormalId.Top
+		e.Color = ColorSequence.new(Color3.new(1, 1, 1), ghostAccent)
+		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.3), NumberSequenceKeypoint.new(1, 0) })
+		e.Lifetime = NumberRange.new(1, 1.8)
+		e.Speed = NumberRange.new(0.6, 1.5)
+		e.Rate = 4 + tier * 3
+		e.Parent = disc
+		ghostAura = disc
+	end
 end
 
 local rayParams = RaycastParams.new()
@@ -253,13 +276,20 @@ RunService.RenderStepped:Connect(function()
 	ghost:PivotTo(CFrame.new(spot + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.rad(90)))
 	SprinklerModel.Animate(ghost, os.clock())
 	ghostCircle:Place(spot)
-	local color = ok and SprinklerModel.GREEN or RED
-	ghostCircle:SetColor(color)
-	for _, p in ipairs(ghost:GetDescendants()) do
-		if p:IsA("BasePart") then
-			p.Color = color
-		elseif p:IsA("HandleAdornment") then
-			p.Color3 = color
+	if ghostAura then
+		ghostAura.CFrame = CFrame.new(spot + Vector3.new(0, 0.3, 0))
+	end
+	if ok ~= ghostOk then
+		-- green = can place, red = can't; the inner line shows the sprinkler's rarity colour
+		ghostOk = ok
+		local color = ok and SprinklerModel.GREEN or RED
+		ghostCircle:SetColor(color, ok and ghostAccent or RED)
+		for _, p in ipairs(ghost:GetDescendants()) do
+			if p:IsA("BasePart") then
+				p.Color = color
+			elseif p:IsA("HandleAdornment") then
+				p.Color3 = color
+			end
 		end
 	end
 	local now = os.clock()
@@ -272,11 +302,12 @@ end)
 ---------------------------------------------------------------------
 -- Placed sprinklers: spinning head + stardust spray
 ---------------------------------------------------------------------
-local sprinklers = {} -- model -> { Head, Base, Emitters, Angle }
+local sprinklers = {} -- model -> state (see setupSprinkler)
+local scriptStart = os.clock()
 
-local function sprayEmitter(nozzle, color, radius)
-	-- aimed 45 degrees up, fast enough that the arc lands at the edge of its range
-	local speed = math.sqrt(radius * GRAVITY) * 0.95
+local function sprayEmitter(nozzle, color, radius, height)
+	-- aimed up and out, fast enough that the arc lands near the edge of its range
+	local speed = math.sqrt(radius * GRAVITY) * 0.95 * math.clamp(1 - height / (radius * 3), 0.6, 1)
 	local e = Instance.new("ParticleEmitter")
 	e.Texture = SPARKLE
 	e.LightEmission = 1
@@ -296,6 +327,68 @@ local function sprayEmitter(nozzle, color, radius)
 	return e
 end
 
+local function flatRing(anchor, R, width, color, transparency)
+	local a = Instance.new("CylinderHandleAdornment")
+	a.Adornee = anchor
+	a.Radius = R
+	a.InnerRadius = math.max(0, R - width)
+	a.Height = 0.06
+	a.Color3 = color
+	a.Transparency = transparency
+	a.CFrame = CFrame.Angles(math.rad(90), 0, 0)
+	a.Parent = anchor
+	return a
+end
+
+local function randomPointIn(center, radius)
+	local r = radius * math.sqrt(math.random()) * 0.92
+	local a = math.random() * math.pi * 2
+	return center + Vector3.new(math.cos(a) * r, 0.1, math.sin(a) * r)
+end
+
+-- one-off flash when a sprinkler is placed: shock ring across its range + a burst of sparkles
+local function placementBurst(ground, core, radius, color, size)
+	local anchor = invisiblePart("Burst", Vector3.new(0.2, 0.2, 0.2), CFrame.new(ground + Vector3.new(0, 0.12, 0)))
+	local ring = flatRing(anchor, 1, 0.6, color, 0)
+	local flash = invisiblePart("Flash", Vector3.one, CFrame.new(core), Enum.PartType.Ball)
+	flash.Material = Enum.Material.Neon
+	flash.Color = color
+	flash.Transparency = 0.2
+	local e = Instance.new("ParticleEmitter")
+	e.Texture = SPARKLE
+	e.LightEmission = 1
+	e.Color = ColorSequence.new(Color3.new(1, 1, 1), color)
+	e.Size = NumberSequence.new(0.5 + size * 0.06, 0)
+	e.Lifetime = NumberRange.new(0.8, 1.4)
+	e.Speed = NumberRange.new(6, 10 + size * 2)
+	e.SpreadAngle = Vector2.new(180, 180)
+	e.Drag = 2
+	e.Enabled = false
+	e.Parent = flash
+	e:Emit(15 + size * 12)
+	local start = os.clock()
+	local duration = 0.7 + size * 0.08
+	local conn
+	conn = RunService.Heartbeat:Connect(function()
+		local f = (os.clock() - start) / duration
+		if f >= 1 then
+			conn:Disconnect()
+			anchor:Destroy()
+			task.delay(1.5, function()
+				flash:Destroy()
+			end)
+			flash.Transparency = 1
+			return
+		end
+		local ease = 1 - (1 - f) ^ 3
+		ring.Radius = 1 + (radius - 1) * ease
+		ring.InnerRadius = math.max(0, ring.Radius - 0.5 - size * 0.1)
+		ring.Transparency = f
+		flash.Size = Vector3.one * (1 + size * 0.9 * ease)
+		flash.Transparency = 0.2 + 0.8 * f
+	end)
+end
+
 local function setupSprinkler(model)
 	if not model:IsA("Model") or sprinklers[model] then
 		return
@@ -305,25 +398,110 @@ local function setupSprinkler(model)
 	if not head or not base then
 		return
 	end
+	local gearId = model:GetAttribute("GearId")
+	local gear = GearCatalog.Get(gearId or "")
+	local fx = SprinklerModel.Fx(gearId)
+	local tier = SprinklerModel.RarityTier[gear and gear.Rarity or "Uncommon"] or 2
 	local color = model:GetAttribute("DustColor") or Color3.new(1, 1, 1)
+	local accent = fx.Circle or SprinklerModel.GREEN
 	local radius = model:GetAttribute("Radius") or 9
+	local ground = base.Position - Vector3.new(0, base.Size.X / 2, 0)
+	local height = head.Position.Y - ground.Y
+
 	local emitters = {}
 	for _, nozzle in ipairs(head:GetChildren()) do
 		if nozzle:IsA("Attachment") then
-			table.insert(emitters, sprayEmitter(nozzle, color, radius))
+			table.insert(emitters, sprayEmitter(nozzle, color, radius, height))
 		end
 	end
-	-- a soft glow on the head
+	-- the model's own glows/particles (switched off when you're far away)
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("ParticleEmitter") or d:IsA("PointLight") then
+			table.insert(emitters, d)
+		end
+	end
 	local light = Instance.new("PointLight")
 	light.Color = color
 	light.Range = 10
 	light.Brightness = 1.2
 	light.Parent = head
-	-- soft glowing circle showing exactly what it covers
+
+	-- soft glowing circle in the sprinkler's colour showing exactly what it covers
 	local circle = SprinklerModel.RangeCircle(radius, fxFolder)
-	circle:Place(base.Position - Vector3.new(0, base.Size.X / 2, 0))
-	circle:SetLook(0.9, 0.5, 0.85)
-	sprinklers[model] = { Head = head, Base = base, Emitters = emitters, Angle = math.random() * 6.28, Home = head.CFrame, Circle = circle }
+	circle:Place(ground)
+	circle:SetColor(accent)
+	circle:SetLook(0.9, 0.45, 0.8)
+
+	local state = {
+		Head = head, Base = base, Emitters = emitters, Angle = math.random() * 6.28, Home = head.CFrame,
+		Circle = circle, Fx = fx, Tier = tier, Accent = accent, Radius = radius, Ground = ground,
+		NextWave = os.clock() + math.random() * 2, NextNova = os.clock() + (fx.Nova or 0), NextBeams = 0,
+	}
+
+	-- sparkles rising from the whole covered area
+	if fx.Aura then
+		local disc = invisiblePart("Aura", Vector3.new(radius * 1.9, 0.2, radius * 1.9), CFrame.new(ground + Vector3.new(0, 0.3, 0)))
+		disc.Parent = circle.Part
+		local e = Instance.new("ParticleEmitter")
+		e.Texture = SPARKLE
+		e.LightEmission = 1
+		e.LightInfluence = 0
+		e.Shape = Enum.ParticleEmitterShape.Disc
+		e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+		e.EmissionDirection = Enum.NormalId.Top
+		e.Color = ColorSequence.new(Color3.new(1, 1, 1), accent)
+		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.3 + tier * 0.02), NumberSequenceKeypoint.new(1, 0) })
+		e.Lifetime = NumberRange.new(1.4, 2.4)
+		e.Speed = NumberRange.new(0.8, 2)
+		e.Rate = fx.Aura
+		e.Parent = disc
+		table.insert(emitters, e)
+	end
+
+	-- light streams from the core down into the garden
+	if fx.Beams then
+		state.Beams = {}
+		local src = Instance.new("Attachment")
+		src.Parent = head
+		for i = 1, fx.Beams do
+			local dst = Instance.new("Attachment")
+			dst.Parent = circle.Part
+			local beam = Instance.new("Beam")
+			beam.Attachment0 = src
+			beam.Attachment1 = dst
+			beam.FaceCamera = true
+			beam.LightEmission = 1
+			beam.LightInfluence = 0
+			beam.Segments = 12
+			beam.Width0 = 0.18 + tier * 0.02
+			beam.Width1 = 0.04
+			beam.Color = ColorSequence.new(Color3.new(1, 1, 1), accent)
+			beam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(0.7, 0.5), NumberSequenceKeypoint.new(1, 1) })
+			beam.Parent = circle.Part
+			table.insert(state.Beams, { Beam = beam, Dst = dst })
+		end
+	end
+
+	-- rolling pulse rings
+	if fx.Wave then
+		state.WaveAnchor = invisiblePart("Wave", Vector3.new(0.2, 0.2, 0.2), CFrame.new(ground + Vector3.new(0, 0.1, 0)))
+		state.WaveAnchor.Parent = circle.Part
+		state.WaveRing = flatRing(state.WaveAnchor, 1, 0.35, accent, 1)
+	end
+
+	-- supernova flash
+	if fx.Nova then
+		state.NovaBall = invisiblePart("Nova", Vector3.one, head.CFrame, Enum.PartType.Ball)
+		state.NovaBall.Material = Enum.Material.ForceField
+		state.NovaBall.Color = accent
+		state.NovaBall.Transparency = 1
+		state.NovaBall.Parent = circle.Part
+	end
+
+	sprinklers[model] = state
+	if os.clock() - scriptStart > 3 then
+		placementBurst(ground, head.Position, radius, accent, fx.Burst or 2)
+	end
 end
 
 local sprinklerFolder = workspace:WaitForChild("Sprinklers", 30)
@@ -340,6 +518,45 @@ if sprinklerFolder then
 			sprinklers[m] = nil
 		end
 	end)
+end
+
+local function updateSprinklerFx(s, now)
+	-- pulse rings rolling out to the edge
+	if s.WaveRing then
+		local period = s.Fx.Wave
+		local f = (now - s.NextWave) / 1.6
+		if f >= 1 then
+			s.NextWave = now + period
+			s.WaveRing.Transparency = 1
+		elseif f >= 0 then
+			local R = 1 + (s.Radius - 1) * f
+			s.WaveRing.Radius = R
+			s.WaveRing.InnerRadius = math.max(0, R - 0.35)
+			s.WaveRing.Transparency = 0.3 + 0.7 * f
+		end
+	end
+	-- beams jump to new spots in the garden
+	if s.Beams and now >= s.NextBeams then
+		s.NextBeams = now + 0.7
+		for _, b in ipairs(s.Beams) do
+			b.Dst.WorldPosition = randomPointIn(s.Ground, s.Radius)
+			b.Beam.CurveSize0 = math.random(-6, 6)
+			b.Beam.CurveSize1 = math.random(-2, 2)
+		end
+	end
+	-- supernova: a bright shell blows out from the core
+	if s.NovaBall then
+		local f = (now - s.NextNova) / 0.9
+		if f >= 1 then
+			s.NextNova = now + s.Fx.Nova
+			s.NovaBall.Transparency = 1
+		elseif f >= 0 then
+			s.NovaBall.CFrame = s.Head.CFrame
+			s.NovaBall.Size = Vector3.one * (1 + f * (6 + s.Tier))
+			s.NovaBall.Transparency = f
+		end
+	end
+	s.Circle.Edge.Transparency = 0.45 + 0.15 * math.sin(now * 2)
 end
 
 ---------------------------------------------------------------------
@@ -413,15 +630,19 @@ RunService.Heartbeat:Connect(function(dt)
 			sprinklers[model] = nil
 		else
 			local near = (s.Base.Position - camPos).Magnitude <= SHOW_DISTANCE
-			for _, e in ipairs(s.Emitters) do
-				e.Enabled = near
+			if near ~= s.Near then
+				s.Near = near
+				for _, e in ipairs(s.Emitters) do
+					e.Enabled = near
+				end
+				s.Circle.Part.Parent = near and fxFolder or nil
 			end
-			s.Circle.Part.Parent = near and fxFolder or nil
 			if near then
+				local now = os.clock()
 				s.Angle += dt * 2.4
 				s.Head.CFrame = s.Home * CFrame.Angles(0, s.Angle, 0)
-				SprinklerModel.Animate(model, os.clock())
-				s.Circle.Edge.Transparency = 0.5 + 0.15 * math.sin(os.clock() * 2)
+				SprinklerModel.Animate(model, now)
+				updateSprinklerFx(s, now)
 			end
 		end
 	end

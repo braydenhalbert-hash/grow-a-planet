@@ -60,6 +60,7 @@ local stockFolder = ReplicatedStorage:WaitForChild("PlanetShopStock")
 local buyRobuxRemote = remotes:WaitForChild("BuyRobux", 15) -- Robux buy + gift (made by GameServer)
 local buyGearRemote = remotes:WaitForChild("BuyGear", 15) -- gear shop (made by GameServer)
 local GearCatalog = require(ReplicatedStorage:WaitForChild("GearCatalog"))
+local SprinklerModel = require(ReplicatedStorage:WaitForChild("SprinklerModel"))
 
 ---------------------------------------------------------------------
 -- CONFIG
@@ -363,6 +364,29 @@ local function makePlanetIcon(parent, planet)
 	camera.FieldOfView = 30
 	local distance = radius / math.tan(math.rad(15)) * 1.1
 	camera.CFrame = CFrame.lookAt(Vector3.new(0, radius * 0.3, distance), Vector3.new(0, 0, 0))
+	camera.Parent = viewport
+	viewport.CurrentCamera = camera
+	return viewport, model
+end
+
+-- the real 3D sprinkler in a viewport (same model as in the world), centred so it can turn on the spot
+local function makeGearIcon(parent, gear)
+	local viewport = make("ViewportFrame", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Ambient = Color3.fromRGB(150, 150, 175),
+		LightColor = Color3.fromRGB(255, 250, 240),
+		LightDirection = Vector3.new(-0.5, -0.6, -0.8),
+	}, parent)
+	local model = SprinklerModel.Build(gear, CFrame.new(), false, true)
+	model.Parent = viewport
+	local box, size = model:GetBoundingBox()
+	model.PrimaryPart.PivotOffset = model.PrimaryPart.CFrame:ToObjectSpace(CFrame.new(box.Position))
+	model:PivotTo(CFrame.new())
+	local camera = Instance.new("Camera")
+	camera.FieldOfView = 30
+	local fit = math.max(size.Y, size.X * 0.9) / 2
+	camera.CFrame = CFrame.lookAt(Vector3.new(0, fit * 0.35, fit / math.tan(math.rad(15)) * 1.08), Vector3.new(0, 0, 0))
 	camera.Parent = viewport
 	viewport.CurrentCamera = camera
 	return viewport, model
@@ -1436,18 +1460,13 @@ local function createShop(kind)
 		}, card)
 		corner(iconFrame, 10)
 		stroke(iconFrame, item.Color, 2)
-		local iconViewport, iconModel, iconIsPack
+		local iconViewport, iconModel, iconIsPack, iconIsGear
 		if item.Planet then
 			iconViewport, iconModel = makePlanetIcon(iconFrame, item.Planet)
 		elseif item.Gear then
-			-- a little sprinkler picture: pipe, spinning head and stardust
-			local g = item.Gear
-			make("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -14), Size = UDim2.fromOffset(56, 12), BackgroundColor3 = Color3.fromRGB(90, 96, 104), ZIndex = 4 }, iconFrame)
-			make("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -24), Size = UDim2.fromOffset(12, 46), BackgroundColor3 = Color3.fromRGB(150, 156, 164), ZIndex = 4 }, iconFrame)
-			local head = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 44), Size = UDim2.fromOffset(34, 18), BackgroundColor3 = g.Color, ZIndex = 5 }, iconFrame)
-			corner(head, 6)
-			local dust = label({ Text = "✦ ✧ ✦", TextSize = 22, TextColor3 = g.DustColor, TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, 0, 0, 26), ZIndex = 5 }, iconFrame)
-			dust.TextScaled = false
+			-- the real 3D sprinkler (turns and animates when you point at it)
+			iconViewport, iconModel = makeGearIcon(iconFrame, item.Gear)
+			iconIsGear = true
 		else
 			if item.Pack then
 				iconViewport, iconModel = makePackViewport(iconFrame, item.Pack.Name)
@@ -1593,6 +1612,7 @@ local function createShop(kind)
 			viewport = iconViewport,
 			model = iconModel,
 			isPack = iconIsPack,
+			isGear = iconIsGear,
 			iconScale = iconScale,
 			hover = 0,
 			angle = 0,
@@ -1678,6 +1698,11 @@ local function createShop(kind)
 							local yaw = math.sin(t * 2.4) * 0.65 * r.hover
 							local pitch = math.sin(t * 1.7) * 0.12 * r.hover
 							r.model:PivotTo(CFrame.Angles(pitch, yaw, 0))
+						elseif r.isGear then
+							-- the sprinkler turns slowly and its rings, planets and crystals move
+							r.angle += dt * 1.2 * r.hover
+							r.model:PivotTo(CFrame.Angles(0, r.angle, 0))
+							SprinklerModel.Animate(r.model, t)
 						else
 							-- the planet spins (moons and rocks on it go around with it)
 							r.angle += dt * 2.2 * r.hover

@@ -108,6 +108,8 @@ PlanetCatalog.Rarities = {
 	Epic      = { Order = 4, Color = c(200, 90, 255),  Stock = { 2, 4 } },
 	Legendary = { Order = 5, Color = c(255, 175, 60),  Stock = { 1, 3 } },
 	Mythic    = { Order = 6, Color = c(255, 70, 120),  Stock = { 1, 2 } },
+	Divine    = { Order = 7, Color = c(255, 230, 140), Stock = { 1, 1 } }, -- sprinklers only
+	Celestial = { Order = 8, Color = c(120, 240, 255), Stock = { 1, 1 } }, -- sprinklers only
 }
 
 ---------------------------------------------------------------------
