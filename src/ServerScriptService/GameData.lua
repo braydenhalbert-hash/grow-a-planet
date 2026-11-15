@@ -23,7 +23,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local GameData = {}
 
 local STORE_NAME = "PlanetGame_v1"
-local START_COINS = 50
+local START_COINS = 600
 local AUTOSAVE_SECONDS = 60
 local LOAD_ATTEMPTS = 3
 

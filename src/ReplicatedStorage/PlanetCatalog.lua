@@ -121,7 +121,7 @@ PlanetCatalog.Planets = {
 	----------------------------------------------------------------- planets
 	{
 		Id = "moon", Name = "Moon", Group = "Planet", Rarity = "Common",
-		Cost = 10, SellValue = 16, GrowTime = 20, Weight = { 0.8, 1.4 },
+		Cost = 100, SellValue = 150, GrowTime = 30, Weight = { 0.8, 1.4 },
 		Description = "A small, cratered rock. Great for beginners.",
 		Look = {
 			Size = 4, Color = c(190, 190, 196), Material = Enum.Material.Concrete, Spin = 0.06,
@@ -135,7 +135,7 @@ PlanetCatalog.Planets = {
 	},
 	{
 		Id = "mercury", Name = "Mercury", Group = "Planet", Rarity = "Common",
-		Cost = 25, SellValue = 40, GrowTime = 40, Weight = { 1.0, 2.0 },
+		Cost = 250, SellValue = 375, GrowTime = 50, Weight = { 1.0, 2.0 },
 		Description = "Tiny, scorched and covered in craters.",
 		Look = {
 			Size = 5, Color = c(155, 145, 135), Material = Enum.Material.Rock, Spin = 0.05,
@@ -148,7 +148,7 @@ PlanetCatalog.Planets = {
 	},
 	{
 		Id = "venus", Name = "Venus", Group = "Planet", Rarity = "Common",
-		Cost = 75, SellValue = 120, GrowTime = 60, Weight = { 2.0, 3.5 },
+		Cost = 600, SellValue = 870, GrowTime = 75, Weight = { 2.0, 3.5 },
 		Description = "Wrapped in thick golden clouds.",
 		Look = {
 			Size = 7, Color = c(228, 188, 112), Material = Enum.Material.Sand, Tilt = 3, Spin = 0.1,
@@ -164,7 +164,7 @@ PlanetCatalog.Planets = {
 	},
 	{
 		Id = "earth", Name = "Earth", Group = "Planet", Rarity = "Uncommon",
-		Cost = 200, SellValue = 320, GrowTime = 90, Weight = { 3.0, 5.0 },
+		Cost = 1500, SellValue = 2200, GrowTime = 110, Weight = { 3.0, 5.0 },
 		Description = "Oceans, land, ice and one friendly moon.",
 		Look = {
 			Size = 8, Color = c(40, 110, 212), Material = Enum.Material.SmoothPlastic, Tilt = 23, Spin = 0.22,
@@ -177,13 +177,13 @@ PlanetCatalog.Planets = {
 			},
 			Clouds = { Color = c(255, 255, 255), Count = 13, Size = 0.13, Transparency = 0.25 },
 			Glow = { Color = c(140, 200, 255), Size = 1.09, Transparency = 0.86 },
-			Collect = { MoonValue = 3, Regrow = 120 },
+			Collect = { MoonValue = 20, Regrow = 120 },
 			Moons = { { Size = 0.2, Distance = 1.1, Angle = 40, Color = c(190, 190, 196), Speed = 0.55 } },
 		},
 	},
 	{
 		Id = "mars", Name = "Mars", Group = "Planet", Rarity = "Uncommon",
-		Cost = 450, SellValue = 720, GrowTime = 120, Weight = { 2.0, 4.0 },
+		Cost = 3500, SellValue = 4900, GrowTime = 150, Weight = { 2.0, 4.0 },
 		Description = "The red planet, with two tiny moons.",
 		Look = {
 			Size = 6, Color = c(196, 88, 52), Material = Enum.Material.Rock, Tilt = 25, Spin = 0.2,
@@ -194,7 +194,7 @@ PlanetCatalog.Planets = {
 				{ Lat = 5, Lon = 70, Size = 0.18, Color = c(104, 44, 30) },
 			},
 			Glow = { Color = c(220, 140, 110), Size = 1.06, Transparency = 0.9 },
-			Collect = { MoonValue = 5, Regrow = 120 },
+			Collect = { MoonValue = 35, Regrow = 120 },
 			Moons = {
 				{ Size = 0.1, Distance = 0.85, Angle = 20, Color = c(130, 110, 100), Speed = 1.4 },
 				{ Size = 0.07, Distance = 1.1, Angle = 200, Color = c(120, 100, 90), Speed = 0.8 },
@@ -203,7 +203,7 @@ PlanetCatalog.Planets = {
 	},
 	{
 		Id = "jupiter", Name = "Jupiter", Group = "Planet", Rarity = "Rare",
-		Cost = 1200, SellValue = 1920, GrowTime = 240, Weight = { 8.0, 14.0 },
+		Cost = 18000, SellValue = 25000, GrowTime = 300, Weight = { 8.0, 14.0 },
 		Description = "A giant striped gas planet with a crowd of moons.",
 		Look = {
 			Size = 16, Color = c(214, 168, 118), Material = Enum.Material.SmoothPlastic, Tilt = 3, Spin = 0.38,
@@ -225,7 +225,7 @@ PlanetCatalog.Planets = {
 				{ Lat = -40, Lon = 120, Size = 0.07, Color = c(250, 240, 224) },
 			},
 			Clouds = { Color = c(252, 238, 214), Count = 9, Size = 0.12, Transparency = 0.45 },
-			Collect = { MoonValue = 25, Regrow = 120 },
+			Collect = { MoonValue = 330, Regrow = 120 },
 			Glow = { Color = c(230, 190, 140), Size = 1.04, Transparency = 0.9 },
 			Moons = {
 				{ Size = 0.08, Distance = 0.8, Angle = 10, Color = c(240, 210, 120), Speed = 1.6 },
@@ -237,7 +237,7 @@ PlanetCatalog.Planets = {
 	},
 	{
 		Id = "saturn", Name = "Saturn", Group = "Planet", Rarity = "Rare",
-		Cost = 3000, SellValue = 4800, GrowTime = 360, Weight = { 7.0, 12.0 },
+		Cost = 45000, SellValue = 60000, GrowTime = 420, Weight = { 7.0, 12.0 },
 		Description = "Famous for its glittering rings.",
 		Look = {
 			Size = 14, Color = c(226, 202, 150), Material = Enum.Material.SmoothPlastic, Tilt = 27, Spin = 0.3,
@@ -250,7 +250,7 @@ PlanetCatalog.Planets = {
 				{ Pos = -0.65, Thick = 0.05, Color = c(232, 212, 168) },
 			},
 			Clouds = { Color = c(250, 238, 205), Count = 6, Size = 0.12, Transparency = 0.5 },
-			Collect = { MoonValue = 40, Regrow = 120 },
+			Collect = { MoonValue = 500, Regrow = 120 },
 			Glow = { Color = c(240, 220, 170), Size = 1.04, Transparency = 0.9 },
 			Rings = joinRings(
 				-- faint inner ring
@@ -274,14 +274,14 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "uranus", Name = "Uranus", Group = "Planet", Rarity = "Epic",
-		Cost = 7500, SellValue = 12000, GrowTime = 540, Weight = { 6.0, 10.0 },
+		Id = "uranus", Name = "Uranus", Group = "Planet", Rarity = "Epic", RestockChance = 0.5,
+		Cost = 300000, SellValue = 400000, GrowTime = 720, Weight = { 6.0, 10.0 },
 		Description = "An icy planet spinning on its side, with thin dark rings.",
 		Look = {
 			Size = 11, Color = c(150, 222, 228), Material = Enum.Material.SmoothPlastic, Tilt = 82, Spin = 0.18,
 			Glow = { Color = c(175, 240, 245), Size = 1.1, Transparency = 0.84 },
 			Clouds = { Color = c(235, 252, 255), Count = 5, Size = 0.12, Transparency = 0.55 },
-			Collect = { MoonValue = 100, Regrow = 120 },
+			Collect = { MoonValue = 3400, Regrow = 120 },
 			Rings = joinRings(
 				ringBand({ From = 1.5, To = 2.1, Count = 9, Colors = { c(190, 226, 232), c(150, 190, 200), c(205, 238, 244) },
 					Speed = 14, Fill = 0.35, Transparency = 0.15, TransparencyVar = 0.2, Seed = 21 })
@@ -293,8 +293,8 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "neptune", Name = "Neptune", Group = "Planet", Rarity = "Epic",
-		Cost = 15000, SellValue = 24000, GrowTime = 720, Weight = { 6.0, 10.0 },
+		Id = "neptune", Name = "Neptune", Group = "Planet", Rarity = "Epic", RestockChance = 0.5,
+		Cost = 800000, SellValue = 1050000, GrowTime = 900, Weight = { 6.0, 10.0 },
 		Description = "Deep blue and stormy, far from the sun.",
 		Look = {
 			Size = 10.5, Color = c(52, 92, 218), Material = Enum.Material.SmoothPlastic, Tilt = 28, Spin = 0.25,
@@ -310,7 +310,7 @@ PlanetCatalog.Planets = {
 				{ Lat = -35, Lon = 230, Size = 0.07, Color = c(240, 246, 255) },
 			},
 			Clouds = { Color = c(240, 246, 255), Count = 7, Size = 0.1, Transparency = 0.4 },
-			Collect = { MoonValue = 150, Regrow = 120 },
+			Collect = { MoonValue = 6500, Regrow = 120 },
 			Rings = joinRings(
 				ringBand({ From = 1.5, To = 1.9, Count = 4, Colors = { c(120, 150, 230) },
 					Speed = 12, Fill = 0.3, Transparency = 0.55, Seed = 31 })
@@ -322,7 +322,7 @@ PlanetCatalog.Planets = {
 	----------------------------------------------------------------- suns (the Sun shop)
 	{
 		Id = "red_dwarf", Name = "Red Dwarf", Group = "Star", Rarity = "Uncommon",
-		Cost = 600, SellValue = 960, GrowTime = 150, Weight = { 4.0, 7.0 },
+		Cost = 7500, SellValue = 10500, GrowTime = 200, Weight = { 4.0, 7.0 },
 		Description = "A small, cool, glowing red star. The most common star there is.",
 		Look = {
 			Size = 9, Color = c(255, 96, 52), Material = Enum.Material.Neon, Tilt = 5, Spin = 0.05,
@@ -334,7 +334,7 @@ PlanetCatalog.Planets = {
 	},
 	{
 		Id = "white_dwarf", Name = "White Dwarf", Group = "Star", Rarity = "Rare",
-		Cost = 2500, SellValue = 4000, GrowTime = 300, Weight = { 6.0, 10.0 },
+		Cost = 110000, SellValue = 150000, GrowTime = 540, Weight = { 6.0, 10.0 },
 		Description = "The tiny, white-hot core left behind by a dead star.",
 		Look = {
 			Size = 6, Color = c(235, 244, 255), Material = Enum.Material.Neon, Tilt = 0, Spin = 0.1,
@@ -348,8 +348,8 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "blue_giant", Name = "Blue Giant", Group = "Star", Rarity = "Epic",
-		Cost = 12000, SellValue = 19200, GrowTime = 600, Weight = { 12.0, 20.0 },
+		Id = "blue_giant", Name = "Blue Giant", Group = "Star", Rarity = "Epic", RestockChance = 0.4,
+		Cost = 2000000, SellValue = 2600000, GrowTime = 1200, Weight = { 12.0, 20.0 },
 		Description = "A huge, scorching blue star that burns brighter than anything near it.",
 		Look = {
 			Size = 18, Color = c(110, 170, 255), Material = Enum.Material.Neon, Tilt = 8, Spin = 0.07,
@@ -364,8 +364,8 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "sun", Name = "Sun", Group = "Star", Rarity = "Legendary", RestockChance = 0.5,
-		Cost = 40000, SellValue = 64000, GrowTime = 1200, Weight = { 15.0, 25.0 },
+		Id = "sun", Name = "Sun", Group = "Star", Rarity = "Legendary", RestockChance = 0.4,
+		Cost = 6000000, SellValue = 7800000, GrowTime = 1800, Weight = { 15.0, 25.0 },
 		Description = "A blazing star. It lights up everything around it.",
 		Look = {
 			Size = 22, Color = c(255, 202, 64), Material = Enum.Material.Neon, Tilt = 7, Spin = 0.06,
@@ -380,8 +380,8 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "betelgeuse", Name = "Betelgeuse", Group = "Star", Rarity = "Legendary", RestockChance = 0.3,
-		Cost = 90000, SellValue = 144000, GrowTime = 1800, Weight = { 30.0, 50.0 },
+		Id = "betelgeuse", Name = "Betelgeuse", Group = "Star", Rarity = "Legendary", RestockChance = 0.25,
+		Cost = 18000000, SellValue = 22500000, GrowTime = 2700, Weight = { 30.0, 50.0 },
 		Description = "A red supergiant so big it would swallow Jupiter's orbit. Glowing gas boils off its surface.",
 		Look = {
 			Size = 28, Color = c(255, 120, 50), Material = Enum.Material.Neon, Tilt = 4, Spin = 0.04,
@@ -397,8 +397,8 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "pulsar", Name = "Pulsar", Group = "Star", Rarity = "Mythic", RestockChance = 0.1,
-		Cost = 250000, SellValue = 400000, GrowTime = 3600, Weight = { 80.0, 140.0 },
+		Id = "pulsar", Name = "Pulsar", Group = "Star", Rarity = "Mythic", RestockChance = 0.12,
+		Cost = 60000000, SellValue = 75000000, GrowTime = 3600, Weight = { 80.0, 140.0 },
 		Description = "A spinning neutron star that fires beams of light across space.",
 		Look = {
 			Size = 7, Color = c(200, 235, 255), Material = Enum.Material.Neon, Tilt = 20, Spin = 1.2,
@@ -419,7 +419,7 @@ PlanetCatalog.Planets = {
 	----------------------------------------------------------------- black holes (packs only)
 	{
 		Id = "bh_micro", Name = "Micro Black Hole", Group = "BlackHole", Rarity = "Common", Buyable = false,
-		Cost = 100, SellValue = 120, GrowTime = 30, Weight = { 0.5, 1.2 },
+		Cost = 300, SellValue = 400, GrowTime = 30, Weight = { 0.5, 1.2 },
 		Description = "Tiny, but it still bends the light around it.",
 		Look = {
 			Size = 2.5, Color = c(2, 2, 5), Material = Enum.Material.SmoothPlastic, Tilt = 10,
@@ -433,14 +433,14 @@ PlanetCatalog.Planets = {
 				Arcs = { { Scale = 1.3, Thick = 0.04, Color = c(255, 190, 110), Transparency = 0.35 } },
 				Glow = { Color = c(255, 150, 60), Scale = 1.8, Layers = 5, Opacity = 0.05 },
 			},
-			Collect = { MoonValue = 3, Regrow = 120 },
+			Collect = { MoonValue = 10, Regrow = 120 },
 			Moons = { { Size = 0.12, Distance = 1.5, Angle = 30, Color = c(150, 150, 158), Speed = 1.8 } },
 			Light = { Color = c(255, 170, 90), Range = 14, Brightness = 1 },
 		},
 	},
 	{
 		Id = "bh_stellar", Name = "Stellar Black Hole", Group = "BlackHole", Rarity = "Uncommon", Buyable = false,
-		Cost = 500, SellValue = 600, GrowTime = 90, Weight = { 3.0, 6.0 },
+		Cost = 3000, SellValue = 4000, GrowTime = 90, Weight = { 3.0, 6.0 },
 		Description = "What's left when a big star collapses. A blue star circles it.",
 		Look = {
 			Size = 4.5, Color = c(2, 2, 5), Material = Enum.Material.SmoothPlastic, Tilt = 12,
@@ -457,14 +457,14 @@ PlanetCatalog.Planets = {
 				},
 				Glow = { Color = c(255, 150, 60), Scale = 2.0, Layers = 6, Opacity = 0.05 },
 			},
-			Collect = { MoonValue = 8, Regrow = 120 },
+			Collect = { MoonValue = 50, Regrow = 120 },
 			Moons = { { Size = 0.2, Distance = 1.9, Angle = 200, Color = c(150, 190, 255), Speed = 0.9, Neon = true } },
 			Light = { Color = c(255, 170, 90), Range = 22, Brightness = 1.4 },
 		},
 	},
 	{
 		Id = "bh_nova", Name = "Nova Black Hole", Group = "BlackHole", Rarity = "Rare", Buyable = false,
-		Cost = 2000, SellValue = 3000, GrowTime = 240, Weight = { 8.0, 15.0 },
+		Cost = 30000, SellValue = 40000, GrowTime = 240, Weight = { 8.0, 15.0 },
 		Description = "A violent one: a fiery core, swirling rings and flying rocks.",
 		Look = {
 			Size = 7, Color = c(40, 6, 4), Material = Enum.Material.SmoothPlastic, Tilt = 12,
@@ -484,14 +484,14 @@ PlanetCatalog.Planets = {
 				Flare = { Color = c(255, 205, 115), Length = 3.0, Thick = 0.035 },
 				Glow = { Color = c(255, 110, 30), Scale = 2.0, Layers = 8, Opacity = 0.07 },
 			},
-			Collect = { DebrisValue = 12, Regrow = 120 },
+			Collect = { DebrisValue = 160, Regrow = 120 },
 			Debris = { Count = 14, Color = c(255, 140, 60), Size = 0.07, MinRadius = 0.95, MaxRadius = 1.7, Height = 0.12, Speed = 0.9, Neon = true },
 			Light = { Color = c(255, 120, 40), Range = 32, Brightness = 2 },
 		},
 	},
 	{
 		Id = "bh_sgra", Name = "Sagittarius A*", Group = "BlackHole", Rarity = "Epic", Buyable = false,
-		Cost = 8000, SellValue = 12000, GrowTime = 600, Weight = { 20.0, 40.0 },
+		Cost = 450000, SellValue = 600000, GrowTime = 600, Weight = { 20.0, 40.0 },
 		Description = "The black hole at the heart of our galaxy. A tiny dark moon drifts by.",
 		Look = {
 			Size = 10, Color = c(3, 3, 5), Material = Enum.Material.SmoothPlastic, Tilt = 6,
@@ -509,14 +509,14 @@ PlanetCatalog.Planets = {
 				},
 				Glow = { Color = c(255, 235, 190), Scale = 2.2, Layers = 8, Opacity = 0.05 },
 			},
-			Collect = { MoonValue = 60, Regrow = 120 },
+			Collect = { MoonValue = 3000, Regrow = 120 },
 			Moons = { { Size = 0.08, Distance = 2.0, Angle = 180, Color = c(110, 140, 230), Speed = 0.35 } },
 			Light = { Color = c(255, 240, 210), Range = 36, Brightness = 1.6 },
 		},
 	},
 	{
 		Id = "bh_m87", Name = "M87*", Group = "BlackHole", Rarity = "Legendary", Buyable = false,
-		Cost = 30000, SellValue = 50000, GrowTime = 1500, Weight = { 60.0, 110.0 },
+		Cost = 6000000, SellValue = 8000000, GrowTime = 1500, Weight = { 60.0, 110.0 },
 		Description = "A giant glowing orange ring, the first black hole ever photographed.",
 		Look = {
 			Size = 14, Color = c(2, 2, 4), Material = Enum.Material.SmoothPlastic, Tilt = 8,
@@ -540,13 +540,13 @@ PlanetCatalog.Planets = {
 				{ Size = 0.07, Distance = 2.2, Angle = 40, Color = c(255, 210, 150), Speed = 0.5, Neon = true },
 				{ Size = 0.05, Distance = 2.45, Angle = 220, Color = c(255, 140, 90), Speed = -0.3, Neon = true },
 			},
-			Collect = { MoonValue = 200, Regrow = 120 },
+			Collect = { MoonValue = 32000, Regrow = 120 },
 			Light = { Color = c(255, 160, 70), Range = 46, Brightness = 2 },
 		},
 	},
 	{
 		Id = "bh_ton618", Name = "TON 618", Group = "BlackHole", Rarity = "Mythic", Buyable = false,
-		Cost = 120000, SellValue = 200000, GrowTime = 3600, Weight = { 150.0, 300.0 },
+		Cost = 45000000, SellValue = 60000000, GrowTime = 3600, Weight = { 150.0, 300.0 },
 		Description = "One of the biggest black holes ever found. Huge, blazing and surrounded by wreckage.",
 		Look = {
 			Size = 22, Color = c(1, 1, 3), Material = Enum.Material.SmoothPlastic, Tilt = 5,
@@ -575,7 +575,7 @@ PlanetCatalog.Planets = {
 				Glow = { Color = c(255, 160, 70), Scale = 2.8, Layers = 10, Opacity = 0.05 },
 			},
 			-- the glowing rocks and stars orbiting TON 618 can be collected for coins (they grow back)
-			Collect = { MoonValue = 400, DebrisValue = 50, Regrow = 120 },
+			Collect = { MoonValue = 120000, DebrisValue = 15000, Regrow = 120 },
 			Debris = { Count = 18, Color = c(255, 150, 60), Size = 0.1, MinRadius = 1.0, MaxRadius = 2.1, Height = 0.1, Speed = 1.1, Neon = true },
 			Moons = {
 				{ Size = 0.11, Distance = 2.4, Angle = 20, Color = c(255, 205, 120), Speed = 0.45, Neon = true },

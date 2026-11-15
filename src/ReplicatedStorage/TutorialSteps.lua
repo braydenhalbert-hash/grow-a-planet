@@ -4,7 +4,9 @@
 	Everything the tutorial guides teach and say. TutorialClient runs it, TutorialServer saves it.
 	Edit lines here; you don't need to touch the scripts.
 
-	CORE   taught in order the first time someone plays (buy a seed -> plant -> grow -> harvest -> sell)
+	CORE   taught in order the first time someone plays
+	       (buy a Moon seed -> plant it -> buy + place a Basic Sprinkler -> grow -> harvest -> sell)
+	       New players start with 600 coins: Moon (100) + Basic Sprinkler (500).
 	SIDE   unlocked while playing, one at a time, when they become useful
 	       (enough coins for a pack or sprinkler, walking up to a shop, planting a black hole...)
 	Reactions: what the guides say when something happens (mistakes, big harvests, mutations...)
@@ -35,6 +37,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PackCatalog = require(ReplicatedStorage:WaitForChild("PackCatalog"))
+local PlanetCatalog = require(ReplicatedStorage:WaitForChild("PlanetCatalog"))
 local GearCatalog = require(ReplicatedStorage:WaitForChild("GearCatalog"))
 
 local T = {}
@@ -49,8 +52,10 @@ local function cheapest(list, filter)
 	return best or 1000
 end
 local PACK_COST = cheapest(PackCatalog.Packs)
-local SPRINKLER_COST = cheapest(GearCatalog.Gear, function(g)
-	return g.Kind == "Sprinkler"
+-- the cheapest seed that's better than Common (the "upgrade" lesson unlocks when you can afford it)
+local UPGRADE_COST = cheapest(PlanetCatalog.Planets, function(p)
+	local r = PlanetCatalog.Rarities[p.Rarity]
+	return p.Buyable ~= false and r and (r.Order or 1) >= 2
 end)
 
 T.Guides = {
@@ -78,12 +83,12 @@ T.Guides = {
 T.Core = {
 	{
 		Id = "welcome", Guide = "Cosmo",
-		Intro = { "Whoa, a new gardener! Hi, I'm Cosmo!", "Here we grow PLANETS. Real ones!", "Let's grab you a seed first." },
+		Intro = { "Whoa, a new gardener! Hi, I'm Cosmo!", "Here we grow PLANETS. Real ones!", "You've got 600 coins. Let's get you set up!" },
 	},
 	{
 		Id = "buy_seed", Guide = "Zib", Goal = "Buy a seed from the Seed Seller",
 		Target = { Kind = "npc", Name = "SeedSeller" }, Event = "got_Seed", SkipIf = "hasSeed",
-		Intro = { "Zib here. Best deals in the galaxy!", "Talk to the Seed Seller. A Moon seed is dirt cheap!" },
+		Intro = { "Zib here. Best deals in the galaxy!", "Grab a Moon seed from the Seed Seller. Just 100 coins!" },
 		Hint = { "The Seed Seller is RIGHT there. Follow the glowing path!", "Walk up and press E. Go on, spend!" },
 		Done = { "Pleasure doing business! Hehe." },
 	},
@@ -93,6 +98,20 @@ T.Core = {
 		Intro = { "Now the fun part! Find an empty garden.", "Hold your seed (press its number) and click the dirt!" },
 		Hint = { "Pick your seed in the hotbar, then click a bed!", "The glowing dirt! Click the glowing dirt!" },
 		Done = { "IT'S ALIVE! Your very own planet!" },
+	},
+	{
+		Id = "sprinkler", Guide = "Sprocket", Goal = "Buy a Basic Sprinkler from the Gear Mechanic",
+		Target = { Kind = "npc", Name = "GearMechanic" }, Event = "got_Gear", SkipIf = "hasSprinkler",
+		Intro = { "Ugh, fine. I'm Sprocket. I build stuff.", "You've got 500 coins left. Buy a Basic Sprinkler!" },
+		Hint = { "The Gear Mechanic. Back of the map. Follow the line.", "Press E on the Gear Mechanic." },
+		Done = { "Hmph. Good choice." },
+	},
+	{
+		Id = "place_sprinkler", Guide = "Sprocket", Goal = "Hold the sprinkler and click next to your Moon",
+		Target = { Kind = "myPlant" }, Event = "sprinkler_placed", SkipIf = "placedSprinkler",
+		Intro = { "Hold it, then click your garden, near your Moon.", "Planets inside the green circle grow FASTER." },
+		Hint = { "Press its number to hold it, then click a bed in YOUR garden." },
+		Done = { "...Okay that looks really cool." },
 	},
 	{
 		Id = "grow", Guide = "Cosmo", Goal = "Wait for your planet to grow",
@@ -124,9 +143,9 @@ T.Core = {
 T.Side = {
 	{
 		Id = "packs", Guide = "Zib", Goal = "Buy a seed pack at the purple stand",
-		Trigger = { Coins = PACK_COST, OrNear = "R6" },
+		Trigger = { Coins = PACK_COST },
 		Target = { Kind = "npc", Name = "R6" }, Event = "got_Pack", SkipIf = "hasPack",
-		Intro = { "Psst. Feeling lucky?", "Seed packs can roll RARE planets. Go take a peek!" },
+		Intro = { "Psst. You can afford a seed pack now!", "Packs roll BLACK HOLES. Some are super rare!" },
 		Hint = { "The purple stand! With the black hole!" },
 		Done = { "Ooh, a mystery! Let's open it!" },
 	},
@@ -139,27 +158,11 @@ T.Side = {
 	},
 	{
 		Id = "upgrade", Guide = "Zib", Goal = "Buy a rarer seed (Uncommon or better)",
-		Trigger = { Coins = 250 }, After = "finale",
+		Trigger = { Coins = UPGRADE_COST }, After = "finale",
 		Target = { Kind = "npc", Name = "SeedSeller" }, Event = "buy_rarer", SkipIf = "hasRareSeed",
 		Intro = { "You've got coins! Time to UPGRADE.", "Rarer seeds sell for WAY more. Treat yourself!" },
 		Hint = { "Back to the Seed Seller! Pick something fancy!" },
 		Done = { "Look at you, big spender!" },
-	},
-	{
-		Id = "sprinkler", Guide = "Sprocket", Goal = "Buy a sprinkler from the Gear Mechanic",
-		Trigger = { Coins = SPRINKLER_COST, OrNear = "GearMechanic" },
-		Target = { Kind = "npc", Name = "GearMechanic" }, Event = "got_Gear", SkipIf = "hasSprinkler",
-		Intro = { "Ugh, fine. I'm Sprocket. I build stuff.", "Sprinklers make planets grow FASTER. Go buy one." },
-		Hint = { "The Gear Mechanic. Back of the map. Follow the line." },
-		Done = { "Hmph. Good choice." },
-	},
-	{
-		Id = "place_sprinkler", Guide = "Sprocket", Goal = "Hold the sprinkler and click a bed in YOUR garden",
-		Trigger = { Has = "Sprinkler" }, After = "sprinkler",
-		Target = { Kind = "base" }, Event = "sprinkler_placed", SkipIf = "placedSprinkler",
-		Intro = { "Hold it, then click your garden.", "Planets inside the green circle grow faster." },
-		Hint = { "In YOUR garden. Not the neighbor's. Please.", "No garden yet? Plant a seed on an empty base first." },
-		Done = { "...Okay that looks really cool." },
 	},
 	{
 		Id = "collect", Guide = "Cosmo", Goal = "Run through the moons orbiting your black hole",

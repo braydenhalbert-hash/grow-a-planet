@@ -18,7 +18,7 @@ local TutorialSteps = require(ReplicatedStorage:WaitForChild("TutorialSteps"))
 
 local VERSION = 1
 local MAX_DONE = 400
-local START_COINS = 50
+local START_COINS = 600
 
 local remotes = ReplicatedStorage:WaitForChild("PlanetRemotes")
 local function getRemote(name, class)
@@ -66,6 +66,12 @@ local function tutorialOf(player)
 		end
 	end
 	t.Done = type(t.Done) == "table" and t.Done or {}
+	if t.Experienced then
+		-- lessons added to the basics later are skipped for experienced players too
+		for _, step in ipairs(TutorialSteps.Core) do
+			t.Done[step.Id] = true
+		end
+	end
 	return t
 end
 
