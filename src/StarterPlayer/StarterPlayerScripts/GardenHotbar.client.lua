@@ -1073,7 +1073,7 @@ ScreenFit.Watch(function()
 	refresh(true)
 end)
 
--- on phones the hotbar would cover the bottom of a shop window, so it hides while one is open
+-- the hotbar hides while a shop window is open (it would cover the bottom of the window)
 local function windowOpen()
 	if player:GetAttribute("DialogueOpen") then
 		return true
@@ -1092,7 +1092,8 @@ end
 task.spawn(function()
 	while gui.Parent do
 		refresh(false)
-		local hide = ScreenFit.IsPhone() and windowOpen()
+		-- shop windows take the whole view (blurred background), so the hotbar steps aside
+		local hide = windowOpen()
 		bar.Visible = not hide
 		settingsButton.Visible = not hide
 		task.wait(0.15)

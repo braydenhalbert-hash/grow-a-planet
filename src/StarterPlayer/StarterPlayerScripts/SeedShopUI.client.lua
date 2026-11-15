@@ -62,6 +62,7 @@ local buyGearRemote = remotes:WaitForChild("BuyGear", 15) -- gear shop (made by 
 local GearCatalog = require(ReplicatedStorage:WaitForChild("GearCatalog"))
 local SprinklerModel = require(ReplicatedStorage:WaitForChild("SprinklerModel"))
 local ScreenFit = require(ReplicatedStorage:WaitForChild("ScreenFit")) -- phone layout
+local NpcTalk = require(ReplicatedStorage:WaitForChild("NpcTalk")) -- NPC lines, outline, blur + zoom
 
 ---------------------------------------------------------------------
 -- CONFIG
@@ -73,6 +74,13 @@ local NPC_SHOPS = {
 	SeedSeller = "planets",
 	SunFarmer = "suns",      -- the farmer in the sun hat at the yellow stand (back of the map)
 	GearMechanic = "gear",   -- the mechanic with the pipe at the green stand (back of the map)
+}
+-- what each shop NPC says (typed above their head) right before their shop opens
+local NPC_LINES = {
+	planets = "Here are the seeds that are in stock",
+	suns = "Here are the sun seeds that are in stock",
+	gear = "Here's the gear that's in stock",
+	packs = "Here are the packs that are in stock",
 }
 local BUYER_NAMES = { PlanetBuyer = true } -- the SELL button teleports here
 local CLOSE_DISTANCE = 16
@@ -1832,6 +1840,9 @@ local function createShop(kind)
 		scale.Scale = 0.8 * fit
 		main.Visible = true
 		startAnimation()
+		-- the world behind the window blurs, the camera leans in, and the top buttons step aside
+		NpcTalk.Focus("shop")
+		tabs.Visible = false
 		TweenService:Create(
 			scale,
 			TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
@@ -1840,6 +1851,18 @@ local function createShop(kind)
 	end
 
 	function shop.Close()
+		if main.Visible then
+			NpcTalk.Unfocus("shop")
+			task.defer(function()
+				-- bring the top buttons back once no shop is open
+				for _, other in pairs(shops) do
+					if other.IsOpen() then
+						return
+					end
+				end
+				tabs.Visible = true
+			end)
+		end
 		main.Visible = false
 		oddsPanel.Visible = false
 		giftPanel.Visible = false
@@ -2739,18 +2762,30 @@ local function attachToNpc(npc, kind)
 		end
 	end
 
+	-- talking to the NPC: they type a line above their head, then the shop opens
+	local head = NpcTalk.HeadOf(npc)
+	local talking = false
 	local function open()
-		openShopFor(kind, root)
+		if talking or shops[kind].IsOpen() then
+			return
+		end
+		talking = true
+		NpcTalk.Say(head, NPC_LINES[kind] or "Here's what's in stock", 3)
+		task.delay(0.45, function()
+			talking = false
+			openShopFor(kind, root)
+		end)
 	end
 
 	local prompt = make("ProximityPrompt", {
-		ActionText = "Open Shop",
+		ActionText = "Talk",
 		ObjectText = THEMES[kind].ObjectText,
 		HoldDuration = 0,
 		MaxActivationDistance = 12,
 		RequiresLineOfSight = false,
 	}, root)
 	prompt.Triggered:Connect(open)
+	NpcTalk.OutlineWhenNear(npc, prompt) -- white outline while you're close enough to talk
 
 	local click = make("ClickDetector", { MaxActivationDistance = 14 }, npc)
 	click.MouseClick:Connect(open)
