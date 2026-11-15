@@ -967,6 +967,7 @@ do
 						Group = plant.Planet.Group,
 						Ready = isReady(plant),
 						HasStardust = table.find(plant.Mutations, "stardust") ~= nil,
+						Mutations = table.clone(plant.Mutations or {}),
 					})
 				end
 			end

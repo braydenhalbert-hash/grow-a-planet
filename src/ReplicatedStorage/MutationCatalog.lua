@@ -18,7 +18,9 @@ local MutationCatalog = {}
 --   "multiply"  each boost multiplies the last.  Meteor Shower (3x) + Frozen (2x) = 6x   (gets big fast!)
 MutationCatalog.Stacking = "add"
 
-MutationCatalog.Order = { "meteor", "frozen", "nebula", "solarflare", "supernova", "stardust" }
+MutationCatalog.Order = { "meteor", "frozen", "nebula", "solarflare", "supernova", "stardust",
+	"dewdrop", "starlit", "nebulabloom", "cosmicglow", "quantumrain", "eventhorizon", "starforged",
+	"divinelight", "heavenly", "singularity", "voidtouched" }
 
 MutationCatalog.Mutations = {
 	meteor = {
@@ -54,6 +56,28 @@ MutationCatalog.Mutations = {
 		Color = Color3.fromRGB(215, 190, 255), Color2 = Color3.fromRGB(120, 230, 255),
 	},
 }
+
+-- SPRINKLER BONUS MUTATIONS: never happen by themselves (Chance = 0). A running sprinkler gives one to
+-- the planets in its circle (every 10 seconds each planet has the sprinkler's BonusChance, see GearCatalog).
+-- The pricier the sprinkler, the crazier the bonus. Tex = which Stardust texture the effect uses.
+local function bonus(id, name, mult, color, color2, tex)
+	MutationCatalog.Mutations[id] = {
+		Id = id, Name = name, Chance = 0, CoinMult = mult, SellMult = mult,
+		Color = color, Color2 = color2, Style = "sprinkler", Tex = tex,
+	}
+end
+local rgb = Color3.fromRGB
+bonus("dewdrop", "Dewdrop", 3, rgb(120, 255, 160), rgb(60, 220, 255), "Dust")
+bonus("starlit", "Starlit", 5, rgb(140, 240, 255), rgb(80, 150, 255), "Star")
+bonus("nebulabloom", "Nebula Bloom", 8, rgb(255, 120, 230), rgb(150, 90, 255), "Nebula")
+bonus("cosmicglow", "Cosmic Glow", 15, rgb(255, 215, 90), rgb(255, 140, 40), "Star")
+bonus("quantumrain", "Quantum Rain", 25, rgb(90, 255, 140), rgb(80, 255, 230), "Quantum")
+bonus("eventhorizon", "Event Horizon", 50, rgb(190, 100, 255), rgb(255, 90, 200), "Void")
+bonus("starforged", "Starforged", 100, rgb(255, 250, 230), rgb(255, 190, 70), "Star")
+bonus("divinelight", "Divine Light", 250, rgb(255, 235, 150), rgb(255, 255, 255), "Glint")
+bonus("heavenly", "Heavenly", 500, rgb(190, 250, 255), rgb(200, 160, 255), "Galaxy")
+bonus("singularity", "Singularity", 1000, rgb(120, 255, 120), rgb(40, 200, 255), "Quantum")
+bonus("voidtouched", "Void Touched", 2500, rgb(170, 70, 255), rgb(30, 0, 60), "Void")
 
 function MutationCatalog.Get(id)
 	return type(id) == "string" and MutationCatalog.Mutations[id] or nil

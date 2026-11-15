@@ -9,6 +9,9 @@
 	  * StardustChance   every 10 seconds, each BLACK HOLE in range has this chance to swallow
 	                     the stardust and get the Stardust mutation (see MutationCatalog)
 	  * Duration         seconds it keeps running (it keeps counting while you're offline)
+	  * BonusMutation    every 10 seconds, EVERY planet in range has BonusChance to get this sprinkler's
+	                     bonus mutation (huge sell + coin boost, see MutationCatalog). Set by rarity below,
+	                     or give a sprinkler its own BonusMutation / BonusChance.
 	RestockChance (optional): 0.3 = only in stock at 30% of restocks.
 ]]
 
@@ -214,8 +217,31 @@ GearCatalog.Gear = {
 	}),
 }
 
+-- the bonus mutation each sprinkler gives the planets in its circle (pricier = crazier)
+GearCatalog.BonusByRarity = {
+	Common = { "dewdrop", 0.06 },
+	Uncommon = { "starlit", 0.06 },
+	Rare = { "nebulabloom", 0.06 },
+	Epic = { "quantumrain", 0.055 },
+	Legendary = { "eventhorizon", 0.055 },
+	Mythic = { "starforged", 0.05 },
+	Divine = { "divinelight", 0.05 },
+	Celestial = { "heavenly", 0.05 },
+	Cosmic = { "singularity", 0.05 },
+	Limited = { "voidtouched", 0.05 },
+}
+GearCatalog.BonusById = {
+	sprinkler_cosmic = { "cosmicglow", 0.06 }, -- the first Legendary sprinkler is much cheaper than the others
+}
+
 GearCatalog.ById = {}
 for index, gear in ipairs(GearCatalog.Gear) do
+	if gear.Kind == "Sprinkler" and not gear.BonusMutation then
+		local bonus = GearCatalog.BonusById[gear.Id] or GearCatalog.BonusByRarity[gear.Rarity]
+		if bonus then
+			gear.BonusMutation, gear.BonusChance = bonus[1], bonus[2]
+		end
+	end
 	gear.Index = index
 	GearCatalog.ById[gear.Id] = gear
 end

@@ -109,7 +109,7 @@ T.Core = {
 	{
 		Id = "place_sprinkler", Guide = "Sprocket", Goal = "Hold the sprinkler and click next to your Moon",
 		Target = { Kind = "myPlant" }, Event = "sprinkler_placed", SkipIf = "placedSprinkler",
-		Intro = { "Hold it, then click your garden, near your Moon.", "Planets inside the green circle grow FASTER." },
+		Intro = { "Hold it, then click your garden, near your Moon.", "Planets in the circle grow FASTER...", "...and can get BONUS mutations worth way more!" },
 		Hint = { "Press its number to hold it, then click a bed in YOUR garden." },
 		Done = { "...Okay that looks really cool." },
 	},

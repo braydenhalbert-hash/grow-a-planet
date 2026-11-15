@@ -439,6 +439,20 @@ task.spawn(function()
 							gardenApi:Invoke("mutate", p.Model, "stardust")
 						end
 					end
+					-- bonus mutations: every sprinkler covering this planet rolls its own (they stack)
+					if rollNow then
+						local has = p.Mutations or {}
+						for _, s in ipairs(list) do
+							local gear = s.Gear
+							local center = s.Model.PrimaryPart and s.Model.PrimaryPart.Position
+							if gear.BonusMutation and center and flatDistance(center, pivot) <= gear.Radius
+								and not table.find(has, gear.BonusMutation) and rng:NextNumber() < (gear.BonusChance or 0) then
+								if gardenApi:Invoke("mutate", p.Model, gear.BonusMutation) then
+									table.insert(has, gear.BonusMutation)
+								end
+							end
+						end
+					end
 				end
 			end
 		end

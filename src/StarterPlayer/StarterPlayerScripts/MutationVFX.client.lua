@@ -23,6 +23,7 @@ local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
 local MutationCatalog = require(ReplicatedStorage:WaitForChild("MutationCatalog"))
+local Stardust = require(ReplicatedStorage:WaitForChild("Stardust"))
 -- sounds are optional: if the Audio module isn't set up, the meteors are just silent
 local okAudio, Audio = pcall(function()
 	return require(ReplicatedStorage:WaitForChild("Audio", 5))
@@ -323,6 +324,29 @@ auraBuilders.stardust = function(body, r, m)
 	})
 end
 
+-- sprinkler bonus mutations (Style = "sprinkler"): their own stardust texture orbits the planet,
+-- a soft halo pulses around it, and sparkles rise off it. Bigger multiplier = more of everything.
+local function sprinklerAura(body, r, m)
+	local power = math.clamp(math.log10(math.max(m.SellMult or 2, 2)), 0.3, 3.4) -- 3x ~ 0.5, 2500x ~ 3.4
+	local tex = Stardust.Texture(m.Tex or "Star")
+	emitter(body, {
+		Texture = tex, Rate = 6 + power * 6, Lifetime = NumberRange.new(1.2, 2), Shape = Enum.ParticleEmitterShape.Sphere,
+		ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface, Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, r * (0.35 + power * 0.1)), NumberSequenceKeypoint.new(1, 0) }),
+		Speed = NumberRange.new(0.3, 1), RotSpeed = NumberRange.new(-60, 60), Rotation = NumberRange.new(0, 360),
+		Color = seq(m.Color, m.Color2), LightEmission = 1,
+	})
+	emitter(body, {
+		Texture = SPARKLE, Rate = 4 + power * 5, Lifetime = NumberRange.new(1.5, 2.5), Shape = Enum.ParticleEmitterShape.Sphere,
+		Size = NumberSequence.new(r * 0.12, 0), Speed = NumberRange.new(1, 2.5), Acceleration = Vector3.new(0, 2.5, 0),
+		Color = seq(Color3.new(1, 1, 1), m.Color2), LightEmission = 1,
+	})
+	local light = Instance.new("PointLight")
+	light.Color = m.Color
+	light.Range = math.clamp(r * 4 + power * 6, 10, 40)
+	light.Brightness = 1 + power * 0.6
+	light.Parent = body
+end
+
 ---------------------------------------------------------------------
 -- Tracking mutated planets
 ---------------------------------------------------------------------
@@ -365,7 +389,8 @@ local function setup(model)
 			for _, child in ipairs(body:GetChildren()) do
 				before[child] = true
 			end
-			local build = auraBuilders[id]
+			local info = MutationCatalog.Get(id)
+			local build = auraBuilders[id] or (info and info.Style == "sprinkler" and sprinklerAura)
 			if build then
 				build(body, r, MutationCatalog.Get(id))
 			end
@@ -614,6 +639,31 @@ burstStyles.stardust = function(pos, r, m)
 	end)
 end
 
+-- a sprinkler bonus lands: stardust rains INTO the planet, then it flashes (bigger multiplier = bigger boom)
+local function sprinklerBurst(pos, r, m)
+	r = math.max(r, 1)
+	local power = math.clamp(math.log10(math.max(m.SellMult or 2, 2)), 0.3, 3.4)
+	local tex = Stardust.Texture(m.Tex or "Star")
+	for i = 1, math.floor(10 + power * 8) do
+		local dir = Vector3.new(math.random() - 0.5, math.random() * 0.8 + 0.2, math.random() - 0.5)
+		local start = pos + dir.Unit * r * (5 + power * 2)
+		local mote = fxPart(start, Vector3.new(0.4, 0.4, 0.4), i % 2 == 0 and m.Color or m.Color2, Enum.PartType.Ball, 0)
+		local seconds = 0.5 + math.random() * 0.4
+		TweenService:Create(mote, TweenInfo.new(seconds, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ Position = pos, Size = Vector3.new(0.05, 0.05, 0.05) }):Play()
+		Debris:AddItem(mote, seconds + 0.05)
+	end
+	task.delay(0.9, function()
+		flash(pos, m.Color, r * 8 + power * 10, 0.9)
+		shockwave(pos, m.Color, r, r * (5 + power * 2), 0.7, 0.3)
+		groundRing(pos - Vector3.new(0, r, 0), m.Color2, r * (7 + power * 3), 0.9)
+		burstParticles(pos, {
+			Texture = tex, Lifetime = NumberRange.new(1, 2), Size = NumberSequence.new(r * 0.5, 0),
+			Speed = NumberRange.new(6, 18 + power * 6), RotSpeed = NumberRange.new(-120, 120), Color = seq(m.Color, m.Color2), LightEmission = 1,
+		}, math.floor(30 + power * 30))
+	end)
+end
+
 gainedRemote.OnClientEvent:Connect(function(model, mutId)
 	local mutation = MutationCatalog.Get(mutId)
 	if typeof(model) ~= "Instance" or not mutation then
@@ -624,7 +674,7 @@ gainedRemote.OnClientEvent:Connect(function(model, mutId)
 		return
 	end
 	local r = model:GetAttribute("BodyRadius") or 3
-	local style = burstStyles[mutId]
+	local style = burstStyles[mutId] or (mutation.Style == "sprinkler" and sprinklerBurst)
 	if style then
 		pcall(style, body.Position, r, mutation, model)
 	end
