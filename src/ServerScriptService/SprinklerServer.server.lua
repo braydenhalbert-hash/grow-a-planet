@@ -7,8 +7,10 @@
 	  * stardust floats around those planets; BLACK HOLES suck it in, and every 10 seconds each one
 	    has a chance (StardustChance) to get the Stardust mutation
 	  * placed sprinklers are saved and keep counting down while you're offline
+	  * sprinklers belong to your BASE: they only show while you own one, move with you to a new
+	    base (like your planets) and disappear when you leave or lose the base
 
-	Needs: GameData, GameServer (GearBridge), PlantingServer (GardenAPI), GearCatalog.
+	Needs: GameData, BaseService, GameServer (GearBridge), PlantingServer (GardenAPI), GearCatalog.
 ]]
 
 local Players = game:GetService("Players")
@@ -17,6 +19,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local CollectionService = game:GetService("CollectionService")
 
 local GameData = require(script.Parent:WaitForChild("GameData"))
+local BaseService = require(script.Parent:WaitForChild("BaseService"))
 local GearCatalog = require(ReplicatedStorage:WaitForChild("GearCatalog"))
 local SprinklerModel = require(ReplicatedStorage:WaitForChild("SprinklerModel"))
 local gearBridge = ServerStorage:WaitForChild("GearBridge")
@@ -68,7 +71,9 @@ local function buildModel(gear, position, ownerId, untilTime)
 	model:SetAttribute("Radius", gear.Radius)
 	model:SetAttribute("Until", untilTime)
 	model:SetAttribute("DustColor", gear.DustColor)
-	local base = model.PrimaryPart
+	-- name + timer floating above the design. Hung on the upright "Origin" point at the bottom:
+	-- the Base part is a cylinder turned on its side, and a label's offset turns with its part
+	local anchor = model:FindFirstChild("Origin") or model.PrimaryPart
 
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "Timer"
@@ -76,8 +81,8 @@ local function buildModel(gear, position, ownerId, untilTime)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, model:GetAttribute("CoreY") + 3.4, 0) -- above the top of the design
 	gui.MaxDistance = 70
 	gui.LightInfluence = 0
-	gui.Adornee = base
-	gui.Parent = base
+	gui.Adornee = anchor
+	gui.Parent = anchor
 	local text = Instance.new("TextLabel")
 	text.BackgroundTransparency = 1
 	text.Size = UDim2.fromScale(1, 1)
@@ -106,15 +111,43 @@ local function countFor(player)
 	return n
 end
 
-local function spawnSprinkler(player, entry)
+-- the base a saved sprinkler was placed on (older saves didn't record it: work it out from the spot)
+local function savedBaseSpot(entry)
+	if entry.BX then
+		return Vector3.new(entry.BX, entry.BY, entry.BZ)
+	end
+	local old = BaseService.BaseAtPosition(Vector3.new(entry.X, entry.Y, entry.Z))
+	return old and Vector3.new(old.Center.X, old.Top, old.Center.Z) or nil
+end
+
+-- shows a saved sprinkler on the player's CURRENT base (slid over if it was saved on another base)
+local function spawnSprinkler(player, entry, base)
 	local gear = GearCatalog.Get(entry.Id)
-	if not gear then
+	if not gear or not base then
 		return nil
 	end
+	local from = savedBaseSpot(entry)
+	local to = Vector3.new(base.Center.X, base.Top, base.Center.Z)
+	if from and (from - to).Magnitude > 1 then
+		entry.X += to.X - from.X
+		entry.Y += to.Y - from.Y
+		entry.Z += to.Z - from.Z
+	end
+	entry.BX, entry.BY, entry.BZ = to.X, to.Y, to.Z
 	local model, label = buildModel(gear, Vector3.new(entry.X, entry.Y, entry.Z), player.UserId, entry.Until)
 	local s = { Model = model, Owner = player, Gear = gear, Entry = entry, Label = label }
 	table.insert(active, s)
 	return s
+end
+
+-- takes a player's sprinklers out of the world (they stay saved and keep counting down)
+local function despawnFor(player)
+	for i = #active, 1, -1 do
+		if active[i].Owner == player then
+			active[i].Model:Destroy()
+			table.remove(active, i)
+		end
+	end
 end
 
 local lastPlace = {}
@@ -139,9 +172,13 @@ placeRemote.OnServerEvent:Connect(function(player, gearId, position, pad)
 		notice(player, "Place sprinklers on a garden bed.", "error")
 		return
 	end
-	local owner = pad:GetAttribute("BaseOwner")
-	if owner ~= nil and owner ~= player.UserId then
-		notice(player, owner == 0 and "Claim this base first (plant a seed on it)." or "That's not your garden!", "error")
+	local myBase = BaseService.BaseOf(player)
+	if not myBase then
+		notice(player, "Claim a base first (plant a seed on it).", "error")
+		return
+	end
+	if BaseService.BaseForPad(pad) ~= myBase then
+		notice(player, "You can only place sprinklers in your own base.", "error")
 		return
 	end
 
@@ -178,44 +215,51 @@ placeRemote.OnServerEvent:Connect(function(player, gearId, position, pad)
 	end
 
 	data.Sprinklers = data.Sprinklers or {}
-	local entry = { Id = gear.Id, X = spot.X, Y = spot.Y, Z = spot.Z, Until = os.time() + gear.Duration }
+	local entry = {
+		Id = gear.Id, X = spot.X, Y = spot.Y, Z = spot.Z, Until = os.time() + gear.Duration,
+		BX = myBase.Center.X, BY = myBase.Top, BZ = myBase.Center.Z, -- which base it's on
+	}
 	table.insert(data.Sprinklers, entry)
-	spawnSprinkler(player, entry)
+	spawnSprinkler(player, entry, myBase)
 	notice(player, gear.Name .. " placed! It runs for " .. math.floor(gear.Duration / 60) .. " minutes.", "ok")
 end)
 
 ---------------------------------------------------------------------
 -- Join / leave
 ---------------------------------------------------------------------
-local function onJoin(player)
-	local data = GameData.WaitFor(player)
-	if not data or not player.Parent then
+-- Sprinklers follow your base: nothing shows until you own one (like your planets), they slide
+-- over if you claim a different base, and they vanish if the base is released. Checked every second.
+local shownOn = {} -- player -> the base their sprinklers are showing on
+
+local function syncPlayer(player)
+	local data = GameData.Get(player)
+	if not data then
 		return
 	end
 	data.Sprinklers = data.Sprinklers or {}
+	local base = BaseService.BaseOf(player)
+	if base == shownOn[player] then
+		return
+	end
+	despawnFor(player)
+	shownOn[player] = base
+	if not base then
+		return
+	end
 	local now = os.time()
 	for i = #data.Sprinklers, 1, -1 do
 		local entry = data.Sprinklers[i]
 		if type(entry) ~= "table" or type(entry.Until) ~= "number" or entry.Until <= now or not GearCatalog.Get(entry.Id) then
 			table.remove(data.Sprinklers, i) -- ran out while you were away
 		else
-			spawnSprinkler(player, entry)
+			spawnSprinkler(player, entry, base)
 		end
 	end
-end
-
-Players.PlayerAdded:Connect(onJoin)
-for _, player in ipairs(Players:GetPlayers()) do
-	task.spawn(onJoin, player)
 end
 
 Players.PlayerRemoving:Connect(function(player)
-	for i = #active, 1, -1 do
-		if active[i].Owner == player then
-			active[i].Model:Destroy()
-			table.remove(active, i)
-		end
-	end
+	despawnFor(player)
+	shownOn[player] = nil
 	lastPlace[player] = nil
 end)
 
@@ -237,6 +281,11 @@ task.spawn(function()
 		local rollNow = sinceRoll >= MUTATION_EVERY
 		if rollNow then
 			sinceRoll = 0
+		end
+
+		-- show / move / hide sprinklers to match each player's base
+		for _, player in ipairs(Players:GetPlayers()) do
+			syncPlayer(player)
 		end
 
 		-- remove sprinklers that ran out

@@ -169,8 +169,7 @@ local function canPlaceOn(part)
 	if not part or not CollectionService:HasTag(part, PAD_TAG) then
 		return false
 	end
-	local owner = part:GetAttribute("BaseOwner")
-	return owner == nil or owner == player.UserId
+	return part:GetAttribute("BaseOwner") == player.UserId -- only your own claimed base
 end
 
 -- the exact spot the server will use (it snaps onto the top of the bed, 1.2 studs inside its edges)
