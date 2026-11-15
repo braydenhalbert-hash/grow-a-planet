@@ -18,6 +18,7 @@ local CollectionService = game:GetService("CollectionService")
 
 local GameData = require(script.Parent:WaitForChild("GameData"))
 local GearCatalog = require(ReplicatedStorage:WaitForChild("GearCatalog"))
+local SprinklerModel = require(ReplicatedStorage:WaitForChild("SprinklerModel"))
 local gearBridge = ServerStorage:WaitForChild("GearBridge")
 local gardenApi = ServerStorage:WaitForChild("GardenAPI")
 
@@ -55,83 +56,24 @@ local active = {} -- { Model, Owner, Gear, Entry, Label }
 ---------------------------------------------------------------------
 -- The sprinkler model
 ---------------------------------------------------------------------
-local function part(props, parent)
-	local p = Instance.new("Part")
-	p.Anchored = true
-	p.CanCollide = false
-	p.CanQuery = false
-	p.CanTouch = false
-	p.CastShadow = false
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	for k, v in pairs(props) do
-		p[k] = v
-	end
-	p.Parent = parent
-	return p
-end
-
-local function cylinderUp(position)
-	-- Roblox cylinders lie on their side; turn them upright
-	return CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90))
-end
-
 local function formatTime(seconds)
 	seconds = math.max(0, math.floor(seconds))
 	return string.format("%d:%02d", seconds // 60, seconds % 60)
 end
 
 local function buildModel(gear, position, ownerId, untilTime)
-	local model = Instance.new("Model")
-	model.Name = gear.Name
+	local model = SprinklerModel.Build(gear, CFrame.new(position))
 	model:SetAttribute("Owner", ownerId)
 	model:SetAttribute("GearId", gear.Id)
 	model:SetAttribute("Radius", gear.Radius)
 	model:SetAttribute("Until", untilTime)
 	model:SetAttribute("DustColor", gear.DustColor)
-
-	local metal = Color3.fromRGB(120, 126, 134)
-	local base = part({
-		Name = "Base", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.35, 2.2, 2.2),
-		CFrame = cylinderUp(position + Vector3.new(0, 0.175, 0)), Color = Color3.fromRGB(60, 64, 70),
-		Material = Enum.Material.DiamondPlate,
-	}, model)
-	part({
-		Name = "Rim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.12, 2.35, 2.35),
-		CFrame = cylinderUp(position + Vector3.new(0, 0.38, 0)), Color = gear.Color, Material = Enum.Material.Neon,
-		Transparency = 0.2,
-	}, model)
-	part({
-		Name = "Pipe", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.1, 0.42, 0.42),
-		CFrame = cylinderUp(position + Vector3.new(0, 1.4, 0)), Color = metal, Material = Enum.Material.Metal,
-	}, model)
-	part({
-		Name = "Valve", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.18, 0.75, 0.75),
-		CFrame = CFrame.new(position + Vector3.new(0, 1.0, 0.3)), Color = Color3.fromRGB(200, 60, 50), Material = Enum.Material.Metal,
-	}, model)
-	local head = part({
-		Name = "Head", Size = Vector3.new(1.1, 0.35, 1.1),
-		CFrame = CFrame.new(position + Vector3.new(0, 2.6, 0)), Color = gear.Color, Material = Enum.Material.Neon,
-	}, model)
-	local cap = Instance.new("SpecialMesh")
-	cap.MeshType = Enum.MeshType.Sphere
-	cap.Scale = Vector3.new(1, 0.8, 1)
-	cap.Parent = head
-	-- three nozzles around the head (the client sprays stardust out of them and spins the head)
-	for i = 1, 3 do
-		local angle = (i - 1) * (math.pi * 2 / 3)
-		local nozzle = Instance.new("Attachment")
-		nozzle.Name = "Nozzle" .. i
-		-- points outward and 45 degrees up
-		nozzle.CFrame = CFrame.Angles(0, angle, 0) * CFrame.new(0, 0, -0.5) * CFrame.Angles(math.rad(45), 0, 0)
-		nozzle.Parent = head
-	end
-	model.PrimaryPart = base
+	local base = model.PrimaryPart
 
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "Timer"
 	gui.Size = UDim2.fromOffset(170, 40)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, 4.2, 0)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 4.4, 0)
 	gui.MaxDistance = 70
 	gui.LightInfluence = 0
 	gui.Adornee = base
