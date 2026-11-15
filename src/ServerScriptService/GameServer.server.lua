@@ -22,44 +22,10 @@ local PackCatalog = require(ReplicatedStorage:WaitForChild("PackCatalog"))
 local GearCatalog = require(ReplicatedStorage:WaitForChild("GearCatalog")) -- sprinklers (the gear shop)
 
 local RESTOCK_PERIOD = 300        -- seconds between restocks
-local RESTOCK_PRODUCT_ID = 0      -- paste a Developer Product ID here for the Robux "RESTOCK" button
-
--- ROBUX PURCHASES (the purple button and Gift button in the shop)
--- Each item costs Robux based on its rarity. Make one Developer Product per price below
--- (Creator Hub > your game > Monetization > Developer Products), give each the SAME Robux price
--- as the number in its [brackets], and paste its ID where the 0 is. Leave a 0 and that price
--- just says "Robux purchases aren't set up yet" when clicked.
-local ROBUX_PRICE_BY_RARITY = {
-	Common = 19,
-	Uncommon = 39,
-	Rare = 79,
-	Epic = 149,
-	Legendary = 299,
-	Mythic = 599,
-}
--- Planet SEED products: one per price (19, 39, 79, 149, 299, 599)
-local ROBUX_PRODUCT_SEED = {
-	[19] = 0,
-	[39] = 0,
-	[79] = 0,
-	[149] = 0,
-	[299] = 0,
-	[599] = 0,
-}
--- Black Hole PACK products: Singularity 79, Event Horizon 149, Quasar 299, Void Heart 599
--- (the other prices are only used if you change a pack's rarity)
-local ROBUX_PRODUCT_PACK = {
-	[19] = 0,
-	[39] = 0,
-	[79] = 0,
-	[149] = 0,
-	[299] = 0,
-	[599] = 0,
-}
-local function robuxProductFor(kind, price)
-	local table_ = kind == "pack" and ROBUX_PRODUCT_PACK or ROBUX_PRODUCT_SEED
-	return table_[price] or 0
-end
+-- ROBUX PURCHASES (the purple R$ button, the Gift button and the Robux RESTOCK button)
+-- Every product id and price lives in ReplicatedStorage.RobuxProducts.
+local RobuxProducts = require(ReplicatedStorage:WaitForChild("RobuxProducts"))
+local RESTOCK_PRODUCT_ID = RobuxProducts.Restock.ProductId
 
 local BUY_COOLDOWN = 0.15
 local PENDING_TIMEOUT = 12        -- if a client never finishes the pack animation, give the seed anyway
@@ -107,16 +73,10 @@ stockFolder.Name = "PlanetShopStock"
 stockFolder.Parent = ReplicatedStorage
 
 -- tell the shop screens how many Robux each item costs
-for _, planet in ipairs(PlanetCatalog.Planets) do
-	if planet.Buyable ~= false and ROBUX_PRICE_BY_RARITY[planet.Rarity] then
-		stockFolder:SetAttribute("Robux_" .. planet.Id, ROBUX_PRICE_BY_RARITY[planet.Rarity])
-	end
+for itemId, info in pairs(RobuxProducts.Items) do
+	stockFolder:SetAttribute("Robux_" .. itemId, info.Price)
 end
-for _, pack in ipairs(PackCatalog.Packs) do
-	if ROBUX_PRICE_BY_RARITY[pack.Tier] then
-		stockFolder:SetAttribute("Robux_" .. pack.Id, ROBUX_PRICE_BY_RARITY[pack.Tier])
-	end
-end
+stockFolder:SetAttribute("Robux_Restock", RobuxProducts.Restock.Price)
 
 local stock = {}
 
@@ -577,26 +537,35 @@ end
 local pendingRobux = {}   -- buyer userId -> { Kind, Id, Name, Price, RecipientId }
 local handledReceipts = {}
 
+-- what a Robux item is: "seed", "pack" or "gear", plus its display name
+local function robuxItem(itemId)
+	local planet = PlanetCatalog.Get(itemId)
+	if planet and planet.Buyable ~= false then
+		return "seed", planet.Name .. " Seed"
+	end
+	local pack = PackCatalog.Get(itemId)
+	if pack then
+		return "pack", pack.Name
+	end
+	local gear = GearCatalog.Get(itemId)
+	if gear then
+		return "gear", gear.Name
+	end
+	return nil
+end
+
 buyRobuxRemote.OnServerEvent:Connect(function(player, itemId, recipientId)
 	if typeof(itemId) ~= "string" or onCooldown(player) then
 		return
 	end
 
-	local kind, name, rarity
-	local planet = PlanetCatalog.Get(itemId)
-	local pack = PackCatalog.Get(itemId)
-	if planet and planet.Buyable ~= false then
-		kind, name, rarity = "seed", planet.Name .. " Seed", planet.Rarity
-	elseif pack then
-		kind, name, rarity = "pack", pack.Name, pack.Tier
-	else
+	local kind, name = robuxItem(itemId)
+	local product = RobuxProducts.Get(itemId)
+	if not kind then
 		return
 	end
-
-	local price = ROBUX_PRICE_BY_RARITY[rarity]
-	local productId = price and robuxProductFor(kind, price) or 0
-	if not price or productId <= 0 then
-		notice(player, "Robux purchases aren't set up yet.", "error")
+	if not product or product.ProductId <= 0 then
+		notice(player, "That item can't be bought with Robux.", "error")
 		return
 	end
 
@@ -616,11 +585,32 @@ buyRobuxRemote.OnServerEvent:Connect(function(player, itemId, recipientId)
 		Kind = kind,
 		Id = itemId,
 		Name = name,
-		Price = price,
+		ProductId = product.ProductId,
 		RecipientId = recipient.UserId,
 	}
-	MarketplaceService:PromptProductPurchase(player, productId)
+	MarketplaceService:PromptProductPurchase(player, product.ProductId)
 end)
+
+local function grantRobuxItem(recipient, kind, itemId)
+	local data = GameData.Get(recipient)
+	if not data then
+		return false
+	end
+	if kind == "seed" then
+		data.Seeds[itemId] = (data.Seeds[itemId] or 0) + 1
+		refreshSeed(recipient, itemId)
+	elseif kind == "pack" then
+		data.Packs[itemId] = (data.Packs[itemId] or 0) + 1
+		refreshPack(recipient, itemId)
+	elseif kind == "gear" then
+		data.Gear = data.Gear or {}
+		data.Gear[itemId] = (data.Gear[itemId] or 0) + 1
+		refreshGear(recipient, itemId)
+	else
+		return false
+	end
+	return true
+end
 
 MarketplaceService.ProcessReceipt = function(receipt)
 	if handledReceipts[receipt.PurchaseId] then
@@ -628,40 +618,47 @@ MarketplaceService.ProcessReceipt = function(receipt)
 	end
 
 	-- the Robux RESTOCK button
-	if RESTOCK_PRODUCT_ID > 0 and receipt.ProductId == RESTOCK_PRODUCT_ID then
+	if receipt.ProductId == RESTOCK_PRODUCT_ID then
 		restock()
 		handledReceipts[receipt.PurchaseId] = true
+		local buyer = Players:GetPlayerByUserId(receipt.PlayerId)
+		if buyer then
+			notice(buyer, "Shop restocked!", "ok")
+		end
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 
+	local itemId = RobuxProducts.ItemForProduct(receipt.ProductId)
 	local buyer = Players:GetPlayerByUserId(receipt.PlayerId)
-	local entry = buyer and pendingRobux[buyer.UserId]
-	if not buyer or not entry or robuxProductFor(entry.Kind, entry.Price) ~= receipt.ProductId then
+	if not itemId or not buyer then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local kind, name = robuxItem(itemId)
+	if not kind then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 
-	local recipient = Players:GetPlayerByUserId(entry.RecipientId)
-	local data = recipient and GameData.Get(recipient)
-	if not data then
+	-- a gift goes to the player picked in the Gift menu; if they left, the buyer keeps it
+	local entry = pendingRobux[buyer.UserId]
+	local recipient = buyer
+	if entry and entry.ProductId == receipt.ProductId then
+		recipient = Players:GetPlayerByUserId(entry.RecipientId) or buyer
+	end
+
+	if not grantRobuxItem(recipient, kind, itemId) then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 
-	if entry.Kind == "seed" then
-		data.Seeds[entry.Id] = (data.Seeds[entry.Id] or 0) + 1
-		refreshSeed(recipient, entry.Id)
-	else
-		data.Packs[entry.Id] = (data.Packs[entry.Id] or 0) + 1
-		refreshPack(recipient, entry.Id)
+	if entry and entry.ProductId == receipt.ProductId then
+		pendingRobux[buyer.UserId] = nil
 	end
-
-	pendingRobux[buyer.UserId] = nil
 	handledReceipts[receipt.PurchaseId] = true
 
 	if recipient == buyer then
-		notice(buyer, "Bought " .. entry.Name .. " with Robux!", "ok")
+		notice(buyer, "Bought " .. name .. " with Robux!", "ok")
 	else
-		notice(buyer, "Sent " .. entry.Name .. " to " .. recipient.DisplayName .. "!", "ok")
-		notice(recipient, buyer.DisplayName .. " gifted you " .. entry.Name .. "!", "ok")
+		notice(buyer, "Sent " .. name .. " to " .. recipient.DisplayName .. "!", "ok")
+		notice(recipient, buyer.DisplayName .. " gifted you " .. name .. "!", "ok")
 	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end

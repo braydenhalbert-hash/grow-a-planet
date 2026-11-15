@@ -1246,7 +1246,7 @@ local function createShop(kind)
 	local restockBtn = button({
 		Name = "Restock",
 		Text = "RESTOCK",
-		TextSize = 22,
+		TextSize = 20,
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -72, 0.5, 0),
 		Size = UDim2.fromOffset(132, 50),
@@ -1590,12 +1590,6 @@ local function createShop(kind)
 		}, buyRow)
 		stroke(giftBtn, Color3.fromRGB(170, 215, 255), 2, 0.3)
 
-		if kind == "gear" then
-			-- gear is coins only: one big buy button
-			robuxBtn.Visible = false
-			giftBtn.Visible = false
-			coinBtn.Size = UDim2.new(0.94, 0, 0, 62)
-		end
 
 		local row = {
 			item = item,
@@ -1608,6 +1602,7 @@ local function createShop(kind)
 			gradient = cardGradient,
 			coinBtn = coinBtn,
 			robuxBtn = robuxBtn,
+			giftBtn = giftBtn,
 			-- hover animation: the planet / pack in the picture comes alive
 			viewport = iconViewport,
 			model = iconModel,
@@ -1670,8 +1665,12 @@ local function createShop(kind)
 				r.coinBtn.BackgroundColor3 = affordable and theme.BuyColor or Color3.fromRGB(170, 60, 70)
 			end
 
+			-- items without a Robux product get one big coin button
 			local robux = stockFolder:GetAttribute("Robux_" .. r.item.Id)
 			r.robuxBtn.Text = robux and ("R$ " .. robux) or "R$ ?"
+			r.robuxBtn.Visible = robux ~= nil
+			r.giftBtn.Visible = robux ~= nil
+			r.coinBtn.Size = robux and UDim2.new(0.36, 0, 0, 62) or UDim2.new(0.94, 0, 0, 62)
 		end
 	end
 	refresh()
@@ -1759,6 +1758,12 @@ local function createShop(kind)
 	end
 
 	closeX.Activated:Connect(shop.Close)
+	local function showRestockPrice()
+		local robux = stockFolder:GetAttribute("Robux_Restock")
+		restockBtn.Text = robux and ("RESTOCK\nR$ " .. robux) or "RESTOCK"
+	end
+	showRestockPrice()
+	stockFolder:GetAttributeChangedSignal("Robux_Restock"):Connect(showRestockPrice)
 	restockBtn.Activated:Connect(function()
 		restockRemote:FireServer()
 	end)
