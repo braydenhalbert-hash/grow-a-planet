@@ -813,164 +813,213 @@ make("UIListLayout", {
 	HorizontalAlignment = Enum.HorizontalAlignment.Right,
 }, restockHolder)
 
--- PHONES: smaller top buttons and pop-ups, and the coins move to the top-left
--- (the joystick lives in the bottom-left corner on phones)
-ScreenFit.ScaleOnPhone(tabs, 0.62)
+-- SEEDS / GARDEN / SELL sit up in Roblox's own top bar row (next to the Roblox menu buttons,
+-- never on top of them), so the game view underneath stays clear.
+-- PHONES: smaller pop-ups, and the coins move to the top-left (the joystick lives bottom-left)
 ScreenFit.ScaleOnPhone(toastHolder, 0.75)
 ScreenFit.ScaleOnPhone(restockHolder, 0.7)
+local tabsScale = make("UIScale", { Name = "TopBarScale" }, tabs)
+local TABS_W, TABS_H = 560, 64
+local function placeTabs()
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return
+	end
+	local width = camera.ViewportSize.X
+	local inset = GuiService:GetGuiInset().Y
+	local free = GuiService.TopbarInset -- the part of the top bar Roblox's buttons don't use
+	local left = free.Width > 0 and free.Min.X or 0
+	local right = free.Width > 0 and free.Max.X or width
+	if inset < 30 then
+		-- no top bar row (rare): just below the top of the screen
+		tabsScale.Scale = ScreenFit.IsPhone() and 0.5 or 0.8
+		tabs.AnchorPoint = Vector2.new(0.5, 0)
+		tabs.Position = UDim2.new(0.5, 0, 0, 6)
+		return
+	end
+	-- as tall as the top bar row allows, and narrow enough to fit beside the Roblox buttons
+	local scale = math.min((inset - 6) / TABS_H, (right - left - 16) / TABS_W, 0.9)
+	tabsScale.Scale = scale
+	local half = TABS_W * scale / 2
+	local center = math.clamp(width / 2, left + 8 + half, right - 8 - half)
+	tabs.AnchorPoint = Vector2.new(0.5, 0.5)
+	tabs.Position = UDim2.new(0, center, 0, -inset / 2)
+end
+GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(placeTabs)
 ScreenFit.Watch(function()
+	placeTabs()
 	if ScreenFit.IsPhone() then
 		hud.AnchorPoint = Vector2.new(0, 0)
 		hud.Position = UDim2.fromOffset(6, 4)
-		tabs.Position = UDim2.new(0.5, 0, 0, 2)
-		toastHolder.Position = UDim2.new(0.5, 0, 0, 46)
+		toastHolder.Position = UDim2.new(0.5, 0, 0, 8)
 		restockHolder.Position = UDim2.new(1, -8, 0, 68)
 	else
 		hud.AnchorPoint = Vector2.new(0, 1)
 		hud.Position = UDim2.new(0, 16, 1, -16)
-		tabs.Position = UDim2.new(0.5, 0, 0, 8)
-		toastHolder.Position = UDim2.new(0.5, 0, 0, 62)
+		toastHolder.Position = UDim2.new(0.5, 0, 0, 12)
 		restockHolder.Position = UDim2.new(1, -16, 0, 64)
 	end
 end)
 
-local restockSound = make("Sound", { Name = "RestockSound", SoundId = RESTOCK_SOUND_ID, Volume = RESTOCK_VOLUME }, playerGui)
-local restockCounter = 0
-local RESTOCK_SECONDS = 9
+---------------------------------------------------------------------
+-- ANNOUNCEMENTS: big outlined lines of text in the middle of the screen, Grow a Garden style
+--   "Seed Shop, Sun Shop, Gear Shop and Pack Shop stocks have restocked!"
+-- Shop names are coloured. Lines stack, then fade away on their own.
+---------------------------------------------------------------------
+local announceHolder = make("Frame", {
+	Name = "Announcements",
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0.17, 0),
+	Size = UDim2.new(1, -40, 0, 200),
+	BackgroundTransparency = 1,
+}, topGui)
+make("UIListLayout", {
+	Padding = UDim.new(0, 2),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+}, announceHolder)
+ScreenFit.ScaleOnPhone(announceHolder, 0.62)
+ScreenFit.Watch(function()
+	-- the phone scale shrinks the width too, so give it more room to keep lines on one row
+	announceHolder.Size = ScreenFit.IsPhone() and UDim2.new(1.5, 0, 0, 200) or UDim2.new(1, -40, 0, 200)
+end)
 
-showRestock = function(kind, items)
-	local theme = THEMES[kind]
-	if not theme or #items == 0 then
-		return
-	end
-
-	-- the rarest first, and a "rare restock" flag when something Epic or better came in
-	table.sort(items, function(x, y)
-		local ox = PlanetCatalog.Rarities[x.Rarity] and PlanetCatalog.Rarities[x.Rarity].Order or 0
-		local oy = PlanetCatalog.Rarities[y.Rarity] and PlanetCatalog.Rarities[y.Rarity].Order or 0
-		return ox > oy
-	end)
-	local rare = false
-	for _, item in ipairs(items) do
-		local order = PlanetCatalog.Rarities[item.Rarity] and PlanetCatalog.Rarities[item.Rarity].Order or 0
-		if order >= 4 then
-			rare = true
+local ANNOUNCE_SECONDS = 6
+local announceCount = 0
+local function announce(richText)
+	announceCount += 1
+	-- never more than 4 lines: the oldest goes
+	local lines = {}
+	for _, child in ipairs(announceHolder:GetChildren()) do
+		if child:IsA("TextLabel") then
+			table.insert(lines, child)
 		end
 	end
-
-	local shown = math.min(#items, 5)
-	local height = 66 + shown * 26 + (#items > shown and 24 or 0) + 10
-
-	restockCounter += 1
-	local slot = make("Frame", {
-		Name = "RestockSlot", Size = UDim2.fromOffset(330, height), BackgroundTransparency = 1, LayoutOrder = restockCounter,
-	}, restockHolder)
-	local card = make("CanvasGroup", {
-		Name = "Card", Size = UDim2.fromScale(1, 1), Position = UDim2.fromOffset(60, 0),
-		BackgroundColor3 = Color3.new(1, 1, 1), GroupTransparency = 1,
-	}, slot)
-	corner(card, 10)
-	gradient(card, Color3.fromRGB(140, 90, 56), Color3.fromRGB(98, 60, 36), 90)
-	local edge = stroke(card, Color3.new(1, 1, 1), 3.5)
-	local edgeGradient = make("UIGradient", { Color = ColorSequence.new(theme.GlowA, theme.GlowB), Rotation = 0 }, edge)
-	addBricks(card, 1, 0.25, 10, 40)
-
-	local head = make("Frame", {
-		Size = UDim2.new(1, 0, 0, 50), BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 2,
-	}, card)
-	gradient(head, theme.HeaderTop, theme.HeaderBottom, 90)
-	addBricks(head, 3, 0.45, 0, 36)
-	label({
-		Text = (kind == "planets" and "SEEDS RESTOCKED!" or "PACKS RESTOCKED!"),
-		TextSize = 22, Position = UDim2.fromOffset(14, 3), Size = UDim2.new(1, -28, 0, 28), ZIndex = 4,
-	}, head)
-	label({
-		Text = rare and "RARE RESTOCK - go get them!" or (kind == "planets" and "New planet seeds in the shop" or "New black hole packs in the shop"),
-		TextSize = 14, TextColor3 = rare and Color3.fromRGB(255, 225, 110) or Color3.fromRGB(215, 220, 245),
-		Position = UDim2.fromOffset(14, 28), Size = UDim2.new(1, -28, 0, 20), ZIndex = 4,
-	}, head)
-
-	for index = 1, shown do
-		local item = items[index]
-		local color = PlanetCatalog.RarityColor(item.Rarity)
-		local row = make("Frame", {
-			Position = UDim2.fromOffset(12, 58 + (index - 1) * 26), Size = UDim2.new(1, -24, 0, 22),
-			BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.55, ZIndex = 3,
-		}, card)
-		corner(row, 6)
-		local dot = make("Frame", {
-			Position = UDim2.fromOffset(7, 6), Size = UDim2.fromOffset(10, 10), BackgroundColor3 = color, ZIndex = 4,
-		}, row)
-		corner(dot, 5)
-		label({
-			Text = item.Name, TextSize = 16, TextColor3 = color,
-			Position = UDim2.fromOffset(24, 0), Size = UDim2.new(1, -80, 1, 0), ZIndex = 4,
-		}, row)
-		label({
-			Text = "x" .. item.Count, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Right,
-			Position = UDim2.new(1, -52, 0, 0), Size = UDim2.fromOffset(46, 22), ZIndex = 4,
-		}, row)
-	end
-	if #items > shown then
-		label({
-			Text = "+ " .. (#items - shown) .. " more", TextSize = 14, TextColor3 = Color3.fromRGB(200, 200, 235),
-			Position = UDim2.fromOffset(16, 58 + shown * 26), Size = UDim2.new(1, -32, 0, 20), ZIndex = 4,
-		}, card)
+	table.sort(lines, function(a, b)
+		return a.LayoutOrder < b.LayoutOrder
+	end)
+	while #lines >= 4 do
+		table.remove(lines, 1):Destroy()
 	end
 
-	-- clicking it closes it
-	local closeArea = make("TextButton", {
-		Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "", ZIndex = 10,
-	}, card)
-
-	local alive = true
-	local function dismiss()
-		if not alive then
+	local line = make("TextLabel", {
+		Name = "Line",
+		LayoutOrder = announceCount,
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y, -- long lines wrap onto a second line on narrow screens
+		BackgroundTransparency = 1,
+		Font = FONT,
+		RichText = true,
+		Text = richText,
+		TextSize = 34,
+		TextColor3 = Color3.new(1, 1, 1),
+		TextTransparency = 1,
+		TextWrapped = true,
+	}, announceHolder)
+	local outline = make("UIStroke", {
+		Color = Color3.fromRGB(20, 14, 40),
+		Thickness = 2.5,
+		Transparency = 1,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+	}, line)
+	local pop = make("UIScale", { Scale = 0.85 }, line)
+	local fadeIn = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	TweenService:Create(line, fadeIn, { TextTransparency = 0 }):Play()
+	TweenService:Create(outline, fadeIn, { Transparency = 0 }):Play()
+	TweenService:Create(pop, fadeIn, { Scale = 1 }):Play()
+	task.delay(ANNOUNCE_SECONDS, function()
+		if not line.Parent then
 			return
 		end
-		alive = false
-		local out = TweenService:Create(card, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-			Position = UDim2.fromOffset(60, 0), GroupTransparency = 1,
-		})
-		out:Play()
-		out.Completed:Wait()
-		slot:Destroy()
-	end
-	closeArea.Activated:Connect(dismiss)
-
-	TweenService:Create(card, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = UDim2.fromOffset(0, 0), GroupTransparency = 0,
-	}):Play()
-
-	-- the border colors slowly flow around
-	task.spawn(function()
-		while alive and card.Parent do
-			edgeGradient.Rotation = (os.clock() * 70) % 360
-			RunService.RenderStepped:Wait()
-		end
+		local fadeOut = TweenInfo.new(0.6)
+		TweenService:Create(line, fadeOut, { TextTransparency = 1 }):Play()
+		TweenService:Create(outline, fadeOut, { Transparency = 1 }):Play()
+		task.wait(0.65)
+		line:Destroy()
 	end)
+end
 
-	-- sound
+local restockSound = make("Sound", { Name = "RestockSound", SoundId = RESTOCK_SOUND_ID, Volume = RESTOCK_VOLUME }, playerGui)
+
+-- shop names in the colour of their stand
+local SHOP_NAMES = {
+	{ Id = "planets", Text = "Seed Shop", Color = "#5ac8ff" },
+	{ Id = "suns", Text = "Sun Shop", Color = "#ffd24a" },
+	{ Id = "gear", Text = "Gear Shop", Color = "#6cff6c" },
+	{ Id = "packs", Text = "Pack Shop", Color = "#c98cff" },
+}
+local function colored(text, hex)
+	return '<font color="' .. hex .. '">' .. text .. "</font>"
+end
+local function joinNames(names)
+	if #names == 1 then
+		return names[1]
+	end
+	return table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
+end
+local function rarityHex(rarity)
+	return "#" .. PlanetCatalog.RarityColor(rarity):ToHex()
+end
+
+-- the planet list from the server holds seeds from both the Seed Shop and the Sun Shop
+local function shopOfPlanet(name)
+	for _, planet in ipairs(PlanetCatalog.Planets) do
+		if planet.Name == name then
+			return planet.Group == "Star" and "suns" or "planets"
+		end
+	end
+	return "planets"
+end
+
+showRestock = function(planetItems, packItems)
+	local restocked = { gear = true } -- the gear shop rolls new stock every time
+	local best = nil
+	local function consider(item, shopId)
+		restocked[shopId] = true
+		local info = PlanetCatalog.Rarities[item.Rarity]
+		local order = info and info.Order or 0
+		if order >= 4 and (not best or order > best.Order) then
+			best = { Order = order, Item = item, Shop = shopId }
+		end
+	end
+	for _, item in ipairs(planetItems) do
+		consider(item, shopOfPlanet(item.Name))
+	end
+	for _, item in ipairs(packItems) do
+		consider(item, "packs")
+	end
+
+	local names = {}
+	local shopText = {}
+	for _, shop in ipairs(SHOP_NAMES) do
+		shopText[shop.Id] = colored(shop.Text, shop.Color)
+		if restocked[shop.Id] then
+			table.insert(names, shopText[shop.Id])
+		end
+	end
+	announce(joinNames(names) .. " stocks have restocked!")
+
+	-- something Epic or better came in: a second line, like a rare event message
+	if best then
+		local item = best.Item
+		local itemName = best.Shop == "packs" and item.Name or (item.Name .. " Seed")
+		task.delay(0.35, function()
+			announce("Rare restock! " .. colored(itemName, rarityHex(item.Rarity)) .. " is in the " .. shopText[best.Shop] .. "!")
+		end)
+	end
+
 	local copy = restockSound:Clone()
 	copy.Parent = playerGui
-	if rare then
+	if best then
 		copy.PlaybackSpeed = 1.25
 	end
 	copy:Play()
 	Debris:AddItem(copy, 4)
-
-	task.delay(RESTOCK_SECONDS, dismiss)
 end
 
 if restockAnnounceRemote then
 	restockAnnounceRemote.OnClientEvent:Connect(function(planetItems, packItems)
-		if type(planetItems) == "table" and #planetItems > 0 then
-			showRestock("planets", planetItems)
-		end
-		task.wait(0.4)
-		if type(packItems) == "table" and #packItems > 0 then
-			showRestock("packs", packItems)
-		end
+		showRestock(type(planetItems) == "table" and planetItems or {}, type(packItems) == "table" and packItems or {})
 	end)
 end
 
@@ -1174,18 +1223,19 @@ local function createShop(kind)
 	-- phones: a fixed-size window shrunk to fit below Roblox's top bar
 	local fit = 1
 	ScreenFit.Watch(function()
+		local safe = ScreenFit.Size()
+		local camera = workspace.CurrentCamera
+		local inset = camera and (camera.ViewportSize.Y - safe.Y) or 0
+		main.Position = UDim2.new(0.5, 0, 0, inset + safe.Y / 2)
 		if ScreenFit.IsPhone() then
 			local design = Vector2.new(720, 470)
-			local safe = ScreenFit.Size()
-			local camera = workspace.CurrentCamera
-			local inset = camera and (camera.ViewportSize.Y - safe.Y) or 0
 			main.Size = UDim2.fromOffset(design.X, design.Y)
-			main.Position = UDim2.new(0.5, 0, 0, inset + safe.Y / 2)
 			fit = ScreenFit.Fit(design, 0.96)
 		else
-			main.Size = UDim2.fromScale(0.56, 0.84)
-			main.Position = UDim2.fromScale(0.5, 0.54)
-			fit = 1
+			-- computers: the same window blown up to ~90% of the screen height (big screens get a big shop)
+			local design = Vector2.new(720, 640)
+			main.Size = UDim2.fromOffset(design.X, design.Y)
+			fit = math.clamp(math.min(safe.Y * 0.9 / design.Y, safe.X * 0.62 / design.X), 0.6, 2.2)
 		end
 		if main.Visible then
 			scale.Scale = fit
