@@ -30,6 +30,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local GuideNPC = require(ReplicatedStorage:WaitForChild("GuideNPC"))
 local Steps = require(ReplicatedStorage:WaitForChild("TutorialSteps"))
 local Stardust = require(ReplicatedStorage:WaitForChild("Stardust"))
+local ScreenFit = require(ReplicatedStorage:WaitForChild("ScreenFit")) -- phone layout
 local PlanetCatalog = require(ReplicatedStorage:WaitForChild("PlanetCatalog"))
 local GearCatalog = require(ReplicatedStorage:WaitForChild("GearCatalog"))
 local MutationCatalog = require(ReplicatedStorage:WaitForChild("MutationCatalog"))
@@ -522,7 +523,8 @@ end
 local card = Instance.new("Frame")
 card.Name = "Objective"
 card.AnchorPoint = Vector2.new(1, 0)
-card.Position = UDim2.new(1, 340, 0, 132)
+local CARD_Y = 132 -- phones move it up (set further down)
+card.Position = UDim2.new(1, 340, 0, CARD_Y)
 card.Size = UDim2.fromOffset(300, 96)
 card.BackgroundColor3 = rgb(18, 16, 34)
 card.BackgroundTransparency = 0.08
@@ -560,7 +562,7 @@ local function showCard(show)
 	end
 	cardShown = show
 	TweenService:Create(card, TweenInfo.new(0.45, show and Enum.EasingStyle.Back or Enum.EasingStyle.Quad, show and Enum.EasingDirection.Out or Enum.EasingDirection.In), {
-		Position = show and UDim2.new(1, -16, 0, 132) or UDim2.new(1, 340, 0, 132),
+		Position = show and UDim2.new(1, -16, 0, CARD_Y) or UDim2.new(1, 340, 0, CARD_Y),
 	}):Play()
 end
 
@@ -577,13 +579,13 @@ end
 local function cardDone()
 	goalLabel.Text = "DONE!  " .. goalLabel.Text
 	goalLabel.TextColor3 = rgb(110, 255, 150)
-	local s = Instance.new("UIScale")
-	s.Scale = 1.08
-	s.Parent = card
-	TweenService:Create(s, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
-	task.delay(0.4, function()
-		s:Destroy()
-	end)
+	-- a little pop (uses the card's own scale, which is smaller on phones)
+	local s = card:FindFirstChild("PhoneScale")
+	if s then
+		local base = ScreenFit.IsPhone() and 0.72 or 1
+		s.Scale = base * 1.08
+		TweenService:Create(s, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = base }):Play()
+	end
 end
 
 -- edge arrow (when the target is behind you or off screen)
@@ -656,6 +658,17 @@ local helpCorner = Instance.new("UICorner")
 helpCorner.CornerRadius = UDim.new(1, 0)
 helpCorner.Parent = helpButton
 stroke(helpButton, rgb(190, 200, 190), 2, 0.4)
+
+-- PHONES: a smaller objective card higher up, and a smaller ? button
+ScreenFit.ScaleOnPhone(card, 0.72)
+ScreenFit.Watch(function()
+	local phone = ScreenFit.IsPhone()
+	CARD_Y = phone and 124 or 132
+	card.Position = UDim2.new(1, cardShown and -10 or 340, 0, CARD_Y)
+	helpButton.Size = phone and UDim2.fromOffset(44, 44) or UDim2.fromOffset(56, 56)
+	helpButton.Position = phone and UDim2.new(1, -10, 0, 64) or UDim2.new(1, -16, 0, 64)
+	confirm.Size = UDim2.fromOffset(300, 128)
+end)
 task.spawn(function()
 	-- copy the look of GardenHotbar's round buttons
 	local tools

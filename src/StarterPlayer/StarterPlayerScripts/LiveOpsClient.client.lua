@@ -102,6 +102,8 @@ banner.BackgroundColor3 = rgb(10, 12, 24)
 banner.BackgroundTransparency = 0.1
 banner.Visible = false
 banner.Parent = gui
+-- phones: a smaller announcement banner
+require(game:GetService("ReplicatedStorage"):WaitForChild("ScreenFit")).ScaleOnPhone(banner, 0.7)
 Instance.new("UICorner", banner).CornerRadius = UDim.new(0, 14)
 local bStroke = Instance.new("UIStroke", banner)
 bStroke.Thickness = 2

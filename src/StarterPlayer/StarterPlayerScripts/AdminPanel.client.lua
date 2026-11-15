@@ -1762,6 +1762,18 @@ corner(toggleButton, 10)
 local tStroke = stroke(toggleButton, C.Accent, 1.5)
 make("UIGradient", { Color = ColorSequence.new(C.Accent, C.Accent2), Rotation = 30 }, tStroke)
 
+-- phones: the jump button lives bottom-right, so the ADMIN button moves to the left side
+local ScreenFit = require(game:GetService("ReplicatedStorage"):WaitForChild("ScreenFit"))
+ScreenFit.Watch(function()
+	if ScreenFit.IsPhone() then
+		toggleButton.AnchorPoint = Vector2.new(0, 0)
+		toggleButton.Position = UDim2.fromOffset(8, 158)
+	else
+		toggleButton.AnchorPoint = Vector2.new(1, 1)
+		toggleButton.Position = UDim2.new(1, -16, 1, -16)
+	end
+end)
+
 local function setOpen(open)
 	if open == window.Visible then
 		return

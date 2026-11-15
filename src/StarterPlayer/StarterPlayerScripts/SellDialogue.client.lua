@@ -108,6 +108,19 @@ local box = make("Frame", {
 	Visible = false,
 }, gui)
 
+-- phones: smaller and higher up, so the jump button (bottom-right) stays clear
+local ScreenFit = require(ReplicatedStorage:WaitForChild("ScreenFit"))
+ScreenFit.ScaleOnPhone(box, 0.78)
+ScreenFit.Watch(function()
+	if ScreenFit.IsPhone() then
+		box.AnchorPoint = Vector2.new(1, 0)
+		box.Position = UDim2.new(1, 0, 0, 92)
+	else
+		box.AnchorPoint = BOX_ANCHOR
+		box.Position = BOX_POSITION
+	end
+end)
+
 -- fades the left and right edges into the background
 make("UIGradient", {
 	Transparency = NumberSequence.new({

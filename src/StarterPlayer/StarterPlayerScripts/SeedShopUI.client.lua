@@ -61,6 +61,7 @@ local buyRobuxRemote = remotes:WaitForChild("BuyRobux", 15) -- Robux buy + gift 
 local buyGearRemote = remotes:WaitForChild("BuyGear", 15) -- gear shop (made by GameServer)
 local GearCatalog = require(ReplicatedStorage:WaitForChild("GearCatalog"))
 local SprinklerModel = require(ReplicatedStorage:WaitForChild("SprinklerModel"))
+local ScreenFit = require(ReplicatedStorage:WaitForChild("ScreenFit")) -- phone layout
 
 ---------------------------------------------------------------------
 -- CONFIG
@@ -812,6 +813,27 @@ make("UIListLayout", {
 	HorizontalAlignment = Enum.HorizontalAlignment.Right,
 }, restockHolder)
 
+-- PHONES: smaller top buttons and pop-ups, and the coins move to the top-left
+-- (the joystick lives in the bottom-left corner on phones)
+ScreenFit.ScaleOnPhone(tabs, 0.62)
+ScreenFit.ScaleOnPhone(toastHolder, 0.75)
+ScreenFit.ScaleOnPhone(restockHolder, 0.7)
+ScreenFit.Watch(function()
+	if ScreenFit.IsPhone() then
+		hud.AnchorPoint = Vector2.new(0, 0)
+		hud.Position = UDim2.fromOffset(6, 4)
+		tabs.Position = UDim2.new(0.5, 0, 0, 2)
+		toastHolder.Position = UDim2.new(0.5, 0, 0, 46)
+		restockHolder.Position = UDim2.new(1, -8, 0, 68)
+	else
+		hud.AnchorPoint = Vector2.new(0, 1)
+		hud.Position = UDim2.new(0, 16, 1, -16)
+		tabs.Position = UDim2.new(0.5, 0, 0, 8)
+		toastHolder.Position = UDim2.new(0.5, 0, 0, 62)
+		restockHolder.Position = UDim2.new(1, -16, 0, 64)
+	end
+end)
+
 local restockSound = make("Sound", { Name = "RestockSound", SoundId = RESTOCK_SOUND_ID, Volume = RESTOCK_VOLUME }, playerGui)
 local restockCounter = 0
 local RESTOCK_SECONDS = 9
@@ -1148,6 +1170,27 @@ local function createShop(kind)
 		MaxSize = Vector2.new(720, 680),
 	}, main)
 	local scale = make("UIScale", { Scale = 1 }, main)
+
+	-- phones: a fixed-size window shrunk to fit below Roblox's top bar
+	local fit = 1
+	ScreenFit.Watch(function()
+		if ScreenFit.IsPhone() then
+			local design = Vector2.new(720, 470)
+			local safe = ScreenFit.Size()
+			local camera = workspace.CurrentCamera
+			local inset = camera and (camera.ViewportSize.Y - safe.Y) or 0
+			main.Size = UDim2.fromOffset(design.X, design.Y)
+			main.Position = UDim2.new(0.5, 0, 0, inset + safe.Y / 2)
+			fit = ScreenFit.Fit(design, 0.96)
+		else
+			main.Size = UDim2.fromScale(0.56, 0.84)
+			main.Position = UDim2.fromScale(0.5, 0.54)
+			fit = 1
+		end
+		if main.Visible then
+			scale.Scale = fit
+		end
+	end)
 
 	-- glowing border: a gradient that slowly turns
 	local frameStroke = stroke(main, Color3.new(1, 1, 1), 5)
@@ -1736,13 +1779,13 @@ local function createShop(kind)
 			return
 		end
 		refresh()
-		scale.Scale = 0.8
+		scale.Scale = 0.8 * fit
 		main.Visible = true
 		startAnimation()
 		TweenService:Create(
 			scale,
 			TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Scale = 1 }
+			{ Scale = fit }
 		):Play()
 	end
 
