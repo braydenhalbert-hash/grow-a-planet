@@ -20,6 +20,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameData = require(script.Parent:WaitForChild("GameData"))
+local LiveOps = require(script.Parent:WaitForChild("LiveOps"))
 
 ---------------------------------------------------------------------
 -- CONFIG
@@ -121,7 +122,7 @@ local function collect(player, info, piece, position)
 
 	-- mutated planets (Meteor Shower, Nebula...) pay more
 	local mult = info.Model and info.Model:GetAttribute("MutationMult") or 1
-	local value = math.max(1, math.floor(piece.Value * mult + 0.5))
+	local value = math.max(1, math.floor(piece.Value * mult * LiveOps.Get("Coins") + 0.5))
 	if GameData.AddCoins(player, value) then
 		rewardRemote:FireClient(player, value, position)
 	end

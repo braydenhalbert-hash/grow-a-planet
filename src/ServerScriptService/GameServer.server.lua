@@ -732,6 +732,142 @@ Players.PlayerRemoving:Connect(function(player)
 	pending[player] = nil
 end)
 
+-- admin panel inventory API (a BindableFunction: only server scripts can call it; AdminServer checks permissions)
+--   "add", player, kind ("Seed" | "Pack" | "Gear"), id, amount   amount can be negative (removing); returns new count
+--   "planet_add", player, planetId, { Weight, Tier, Mutations = {ids}, Count }   harvested planets in the hotbar
+--   "planet_remove", player, index | "all" | planetId                             returns how many were removed
+--   "inventory", player                                                          everything they own, for the panel
+--   "sync", player                                                               remake every tool from saved data
+--   "restock"                                                                    restock every shop now
+do
+	local ServerStorage = game:GetService("ServerStorage")
+	local inventoryApi = Instance.new("BindableFunction")
+	inventoryApi.Name = "InventoryAPI"
+	inventoryApi.Parent = ServerStorage
+
+	local KINDS = {
+		Seed = { Key = "Seeds", Catalog = PlanetCatalog, Refresh = refreshSeed },
+		Pack = { Key = "Packs", Catalog = PackCatalog, Refresh = refreshPack },
+		Gear = { Key = "Gear", Catalog = GearCatalog, Refresh = refreshGear },
+	}
+
+	-- remove every harvested-planet tool (backpack AND hand) and make them again from saved data
+	local function syncPlanets(player, data)
+		for _, container in ipairs({ player:FindFirstChild("Backpack"), player.Character }) do
+			if container then
+				for _, tool in ipairs(container:GetChildren()) do
+					if tool:IsA("Tool") and tool:GetAttribute("Kind") == "Planet" then
+						tool:Destroy()
+					end
+				end
+			end
+		end
+		local backpack = player:FindFirstChild("Backpack")
+		if not backpack then
+			return
+		end
+		for _, owned in ipairs(data.Planets) do
+			local planet = PlanetCatalog.Get(owned.Id)
+			if planet and type(owned.Weight) == "number" then
+				makePlanetTool(planet, owned.Weight, owned.Tier or (owned.Huge and "huge" or nil), owned.Mut).Parent = backpack
+			end
+		end
+	end
+
+	inventoryApi.OnInvoke = function(action, player, a, b, c)
+		if action == "restock" then
+			restock()
+			return true
+		end
+		local data = typeof(player) == "Instance" and player:IsA("Player") and GameData.Get(player)
+		if not data then
+			return nil, "Their data hasn't loaded"
+		end
+
+		if action == "add" then
+			local kind = KINDS[a]
+			if not kind or not kind.Catalog.Get(b) or type(c) ~= "number" then
+				return nil, "Unknown item"
+			end
+			data[kind.Key] = data[kind.Key] or {}
+			local count = math.max(0, math.floor((data[kind.Key][b] or 0) + c))
+			data[kind.Key][b] = count > 0 and count or nil
+			kind.Refresh(player, b)
+			return count
+
+		elseif action == "planet_add" then
+			local planet = PlanetCatalog.Get(a)
+			if not planet then
+				return nil, "Unknown planet"
+			end
+			b = type(b) == "table" and b or {}
+			local mutIds = {}
+			for _, id in ipairs(type(b.Mutations) == "table" and b.Mutations or {}) do
+				if MutationCatalog.Get(id) then
+					table.insert(mutIds, id)
+				end
+			end
+			local mut = #mutIds > 0 and MutationCatalog.Join(mutIds) or nil
+			local backpack = player:FindFirstChild("Backpack")
+			local count = math.clamp(math.floor(tonumber(b.Count) or 1), 1, 100)
+			for _ = 1, count do
+				local weight = tonumber(b.Weight)
+				if not weight then
+					local range = planet.Weight or { 1, 2 }
+					weight = (range[1] + math.random() * (range[2] - range[1])) * (tonumber(b.TierWeight) or 1)
+				end
+				weight = math.floor(math.clamp(weight, 0.01, 1e9) * 100 + 0.5) / 100
+				table.insert(data.Planets, { Id = planet.Id, Weight = weight, Tier = b.Tier, Mut = mut })
+				if backpack then
+					makePlanetTool(planet, weight, b.Tier, mut).Parent = backpack
+				end
+			end
+			return count
+
+		elseif action == "planet_remove" then
+			local removed = 0
+			for i = #data.Planets, 1, -1 do
+				local owned = data.Planets[i]
+				if a == "all" or a == i or a == owned.Id then
+					table.remove(data.Planets, i)
+					removed += 1
+				end
+			end
+			syncPlanets(player, data)
+			return removed
+
+		elseif action == "inventory" then
+			local planets = {}
+			for i, owned in ipairs(data.Planets) do
+				local planet = PlanetCatalog.Get(owned.Id)
+				table.insert(planets, {
+					Index = i, Id = owned.Id, Name = planet and planet.Name or owned.Id, Rarity = planet and planet.Rarity,
+					Weight = owned.Weight, Tier = owned.Tier or (owned.Huge and "huge" or nil),
+					Mutations = MutationCatalog.Parse(owned.Mut),
+				})
+			end
+			return {
+				Seeds = table.clone(data.Seeds or {}), Packs = table.clone(data.Packs or {}), Gear = table.clone(data.Gear or {}),
+				Planets = planets,
+			}
+
+		elseif action == "sync" then
+			for _, planet in ipairs(PlanetCatalog.Planets) do
+				refreshSeed(player, planet.Id)
+			end
+			for _, pack in ipairs(PackCatalog.Packs) do
+				refreshPack(player, pack.Id)
+			end
+			for _, gear in ipairs(GearCatalog.Gear) do
+				refreshGear(player, gear.Id)
+			end
+			syncPlanets(player, data)
+			return true
+		end
+		return nil, "Unknown action"
+	end
+end
+
 -- admin panel: AdminServer asks us to hand out seeds / packs and restock (server only, nobody else can fire this)
 do
 	local ServerStorage = game:GetService("ServerStorage")

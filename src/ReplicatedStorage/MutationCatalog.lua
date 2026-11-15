@@ -117,7 +117,11 @@ function MutationCatalog.RollAll(rng)
 	rng = rng or Random.new()
 	local ids = {}
 	for _, id in ipairs(MutationCatalog.Order) do
-		if rng:NextNumber() < MutationCatalog.Mutations[id].Chance then
+		local chance = MutationCatalog.Mutations[id].Chance
+		if MutationCatalog.LuckFor then
+			chance = MutationCatalog.LuckFor(id, chance) -- server only: LiveOps luck, events and weather
+		end
+		if rng:NextNumber() < chance then
 			table.insert(ids, id)
 		end
 	end

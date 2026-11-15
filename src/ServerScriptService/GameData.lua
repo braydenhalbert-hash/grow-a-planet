@@ -127,6 +127,17 @@ function GameData.AddCoins(player, amount)
 	return true
 end
 
+-- admin panel: wipe a player's progress (a fresh start, saved when they leave)
+function GameData.Reset(player)
+	local session = sessions[player]
+	if not session then
+		return false
+	end
+	session.Data = newData()
+	player:SetAttribute("Coins", session.Data.Coins)
+	return true
+end
+
 function GameData.Save(player)
 	local session = sessions[player]
 	if not session or not session.CanSave then

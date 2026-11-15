@@ -22,6 +22,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 
 local GameData = require(script.Parent:WaitForChild("GameData"))
+local LiveOps = require(script.Parent:WaitForChild("LiveOps"))
 local PlanetCatalog = require(ReplicatedStorage:WaitForChild("PlanetCatalog"))
 local PlanetBuilder = require(ReplicatedStorage:WaitForChild("PlanetBuilder"))
 local MutationCatalog do
@@ -142,7 +143,7 @@ local function rollTier()
 	local roll = math.random()
 	local total = 0
 	for _, key in ipairs(TIER_ORDER) do
-		total += TIERS[key].Chance
+		total += TIERS[key].Chance * LiveOps.Get("Size") -- admin Size Luck multiplier
 		if roll < total then
 			return key
 		end
@@ -944,6 +945,8 @@ do
 	gardenApi.Name = "GardenAPI"
 	gardenApi.Parent = ServerStorage
 
+	local adminKeys = 0 -- numbers the admin panel uses to point at one planted planet
+
 	local function plantFor(model)
 		for _, plant in ipairs(plants) do
 			if plant.Model == model and not plant.Harvested then
@@ -990,6 +993,125 @@ do
 			applyMutation(plant, b, false)
 			saveSoon(plant.Owner)
 			return true
+
+		-------------------------------------------------------------
+		-- admin panel (AdminServer checks permissions before calling these)
+		-------------------------------------------------------------
+		elseif action == "tiers" then
+			local list = {}
+			for i = #TIER_ORDER, 1, -1 do
+				local key = TIER_ORDER[i]
+				local t = TIERS[key]
+				table.insert(list, { Id = key, Name = t.Label, Size = t.Size, Weight = t.Weight, Chance = t.Chance, Color = t.Color })
+			end
+			return list
+
+		elseif action == "admin_list" then
+			-- a = player: their garden, with a key for each planet so the panel can pick one
+			local list = {}
+			for _, plant in ipairs(plants) do
+				if plant.Owner == a and not plant.Harvested then
+					if not plant.AdminKey then
+						adminKeys += 1
+						plant.AdminKey = adminKeys
+					end
+					local elapsed = os.time() - plant.Entry.T
+					table.insert(list, {
+						Key = plant.AdminKey, Id = plant.Planet.Id, Name = plant.Planet.Name, Rarity = plant.Planet.Rarity,
+						Tier = entryTier(plant.Entry), Mutations = table.clone(plant.Mutations or {}),
+						Ready = isReady(plant), Progress = math.clamp(elapsed / plant.Planet.GrowTime, 0, 1),
+					})
+				end
+			end
+			return list
+
+		elseif action == "admin_remove" then
+			-- a = player, b = a planet's key, or "all"
+			local data = GameData.Get(a)
+			local removed = 0
+			for i = #plants, 1, -1 do
+				local plant = plants[i]
+				if plant.Owner == a and (b == "all" or plant.AdminKey == b) then
+					removePlant(plant)
+					if data then
+						local index = table.find(data.Plants, plant.Entry)
+						if index then
+							table.remove(data.Plants, index)
+						end
+					end
+					removed += 1
+				end
+			end
+			if removed > 0 then
+				saveSoon(a)
+			end
+			return removed
+
+		elseif action == "admin_grow" then
+			-- a = player, b = a planet's key, or "all": finish growing right now
+			local grown = 0
+			for _, plant in ipairs(plants) do
+				if plant.Owner == a and not plant.Harvested and (b == "all" or plant.AdminKey == b) and not isReady(plant) then
+					plant.Entry.T = os.time() - plant.Planet.GrowTime - 1
+					updatePlant(plant)
+					grown += 1
+				end
+			end
+			return grown
+
+		elseif action == "admin_spawn" then
+			-- a = player, b = { Id, Tier, Mutations = {ids}, Grown, Count }: plants them on free spots of their base
+			local planet = type(b) == "table" and PlanetCatalog.Get(b.Id)
+			if not planet then
+				return 0, "Unknown planet"
+			end
+			local base = BaseService.BaseOf and BaseService.BaseOf(a)
+			if not base or not base.Pads or #base.Pads == 0 then
+				return 0, a.DisplayName .. " doesn't have a base yet"
+			end
+			local data = GameData.Get(a)
+			if not data then
+				return 0, "Data not loaded"
+			end
+			local tierKey = (b.Tier and TIERS[b.Tier]) and b.Tier or nil
+			local radius = footprintRadius(planet, tierKey and TIERS[tierKey].Size or 1)
+			local made = 0
+			for _ = 1, math.clamp(tonumber(b.Count) or 1, 1, 25) do
+				local spot
+				for _ = 1, 80 do
+					local pad = base.Pads[math.random(1, #base.Pads)]
+					if pad and pad.Parent then
+						local half = pad.Size / 2
+						local x = (math.random() * 2 - 1) * math.max(0, half.X - EDGE_MARGIN - radius)
+						local z = (math.random() * 2 - 1) * math.max(0, half.Z - EDGE_MARGIN - radius)
+						local ground = findGround(pad.CFrame:PointToWorldSpace(Vector3.new(x, half.Y, z)))
+						if ground and fits(ground, radius) then
+							spot = ground
+							break
+						end
+					end
+				end
+				if not spot then
+					break
+				end
+				local entry = { Id = planet.Id, X = spot.X, Y = spot.Y, Z = spot.Z, Tier = tierKey,
+					T = b.Grown and (os.time() - planet.GrowTime - 1) or os.time() }
+				if type(b.Mutations) == "table" and #b.Mutations > 0 then
+					entry.Muts = {}
+					for _, id in ipairs(b.Mutations) do
+						if MutationCatalog.Get(id) then
+							table.insert(entry.Muts, { Id = id, At = 0 })
+						end
+					end
+				end
+				table.insert(data.Plants, entry)
+				spawnPlant(a, entry)
+				made += 1
+			end
+			if made > 0 then
+				saveSoon(a)
+			end
+			return made, made == 0 and "No free space left in their garden" or nil
 		end
 		return nil
 	end

@@ -264,6 +264,101 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ---------------------------------------------------------------------
+-- Admin panel API (a BindableFunction: only server scripts can call it; AdminServer checks permissions)
+--   "list", player            their placed sprinklers
+--   "remove", player, key     one of them, or "all" (also removed from their save)
+--   "spawn", player, gearId, count   placed on free spots of their base, running for the full time
+---------------------------------------------------------------------
+do
+	local api = Instance.new("BindableFunction")
+	api.Name = "SprinklerAPI"
+	api.Parent = ServerStorage
+	local keys = 0
+
+	api.OnInvoke = function(action, player, a, b)
+		if action == "list" then
+			local list = {}
+			for _, s in ipairs(active) do
+				if s.Owner == player then
+					if not s.Key then
+						keys += 1
+						s.Key = keys
+					end
+					table.insert(list, { Key = s.Key, Id = s.Gear.Id, Name = s.Gear.Name, Rarity = s.Gear.Rarity, Left = s.Entry.Until - os.time() })
+				end
+			end
+			return list
+
+		elseif action == "remove" then
+			local data = GameData.Get(player)
+			local removed = 0
+			for i = #active, 1, -1 do
+				local s = active[i]
+				if s.Owner == player and (a == "all" or s.Key == a) then
+					s.Model:Destroy()
+					table.remove(active, i)
+					if data and data.Sprinklers then
+						local index = table.find(data.Sprinklers, s.Entry)
+						if index then
+							table.remove(data.Sprinklers, index)
+						end
+					end
+					removed += 1
+				end
+			end
+			return removed
+
+		elseif action == "spawn" then
+			local gear = GearCatalog.Get(a)
+			local data = GameData.Get(player)
+			local base = BaseService.BaseOf(player)
+			if not gear or not data then
+				return 0, "Unknown sprinkler"
+			end
+			if not base or not base.Pads or #base.Pads == 0 then
+				return 0, player.DisplayName .. " doesn't have a base yet"
+			end
+			data.Sprinklers = data.Sprinklers or {}
+			local made = 0
+			for _ = 1, math.clamp(tonumber(b) or 1, 1, GearCatalog.MaxPlaced) do
+				local spot
+				for _ = 1, 60 do
+					local pad = base.Pads[math.random(1, #base.Pads)]
+					if pad and pad.Parent then
+						local half = pad.Size / 2
+						local p = pad.CFrame:PointToWorldSpace(Vector3.new(
+							(math.random() * 2 - 1) * (half.X - 1.2), half.Y, (math.random() * 2 - 1) * (half.Z - 1.2)))
+						local clear = true
+						for _, other in ipairs(active) do
+							if other.Model.PrimaryPart and (other.Model.PrimaryPart.Position - p).Magnitude < MIN_GAP then
+								clear = false
+								break
+							end
+						end
+						if clear then
+							spot = p
+							break
+						end
+					end
+				end
+				if not spot then
+					break
+				end
+				local entry = {
+					Id = gear.Id, X = spot.X, Y = spot.Y, Z = spot.Z, Until = os.time() + gear.Duration,
+					BX = base.Center.X, BY = base.Top, BZ = base.Center.Z,
+				}
+				table.insert(data.Sprinklers, entry)
+				spawnSprinkler(player, entry, base)
+				made += 1
+			end
+			return made, made == 0 and "No free space in their base" or nil
+		end
+		return nil
+	end
+end
+
+---------------------------------------------------------------------
 -- Every second: count down, speed up planets, stardust, and Stardust mutation rolls
 ---------------------------------------------------------------------
 local rng = Random.new()

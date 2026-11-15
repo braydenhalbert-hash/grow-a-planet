@@ -19,6 +19,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameData = require(script.Parent:WaitForChild("GameData"))
+local LiveOps = require(script.Parent:WaitForChild("LiveOps"))
 local PlanetCatalog = require(ReplicatedStorage:WaitForChild("PlanetCatalog"))
 
 ---------------------------------------------------------------------
@@ -212,6 +213,7 @@ sellRemote.OnServerEvent:Connect(function(player, action)
 			return
 		end
 
+		total = math.floor(total * LiveOps.Get("Coins") + 0.5) -- admin coin multiplier
 		table.clear(data.Planets)
 		destroyPlanetTools(player)
 		GameData.AddCoins(player, total)
@@ -232,7 +234,7 @@ sellRemote.OnServerEvent:Connect(function(player, action)
 			return
 		end
 
-		local value = PlanetCatalog.SellValueFor(planet, weight, tool:GetAttribute("Mutations"))
+		local value = math.floor(PlanetCatalog.SellValueFor(planet, weight, tool:GetAttribute("Mutations")) * LiveOps.Get("Coins") + 0.5)
 
 		if action == "appraise" then
 			reply(player, true, string.format("I'd value your %.2f kg %s at %s.", weight, planet.Name, gold(value)))
