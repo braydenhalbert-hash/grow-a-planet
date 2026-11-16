@@ -8,7 +8,8 @@
 	Group:   "Planet"    sold in the Planet shop (the green stand)
 	         "Star"      sold in the Sun shop (the yellow stand at the back)
 	         "BlackHole" only comes out of Black Hole Packs
-	RestockChance (optional): 0.2 = only comes into stock at 20% of restocks
+	RestockChance (optional): 0.2 = only comes into stock at 20% of restocks (1 = every restock).
+	          The rarer and pricier a seed, the lower its chance. The shop's ODDS list shows these.
 
 	Look fields (all optional except Size and Color):
 	  Size      diameter in studs
@@ -120,7 +121,7 @@ PlanetCatalog.Rarities = {
 PlanetCatalog.Planets = {
 	----------------------------------------------------------------- planets
 	{
-		Id = "moon", Name = "Moon", Group = "Planet", Rarity = "Common",
+		Id = "moon", Name = "Moon", Group = "Planet", Rarity = "Common", RestockChance = 1,
 		Cost = 100, SellValue = 150, GrowTime = 30, Weight = { 0.8, 1.4 },
 		Description = "A small, cratered rock. Great for beginners.",
 		Look = {
@@ -134,7 +135,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "mercury", Name = "Mercury", Group = "Planet", Rarity = "Common",
+		Id = "mercury", Name = "Mercury", Group = "Planet", Rarity = "Common", RestockChance = 0.85,
 		Cost = 250, SellValue = 375, GrowTime = 50, Weight = { 1.0, 2.0 },
 		Description = "Tiny, scorched and covered in craters.",
 		Look = {
@@ -147,7 +148,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "venus", Name = "Venus", Group = "Planet", Rarity = "Common",
+		Id = "venus", Name = "Venus", Group = "Planet", Rarity = "Common", RestockChance = 0.7,
 		Cost = 600, SellValue = 870, GrowTime = 75, Weight = { 2.0, 3.5 },
 		Description = "Wrapped in thick golden clouds.",
 		Look = {
@@ -163,7 +164,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "earth", Name = "Earth", Group = "Planet", Rarity = "Uncommon",
+		Id = "earth", Name = "Earth", Group = "Planet", Rarity = "Uncommon", RestockChance = 0.55,
 		Cost = 1500, SellValue = 2200, GrowTime = 110, Weight = { 3.0, 5.0 },
 		Description = "Oceans, land, ice and one friendly moon.",
 		Look = {
@@ -182,7 +183,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "mars", Name = "Mars", Group = "Planet", Rarity = "Uncommon",
+		Id = "mars", Name = "Mars", Group = "Planet", Rarity = "Uncommon", RestockChance = 0.4,
 		Cost = 3500, SellValue = 4900, GrowTime = 150, Weight = { 2.0, 4.0 },
 		Description = "The red planet, with two tiny moons.",
 		Look = {
@@ -202,7 +203,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "jupiter", Name = "Jupiter", Group = "Planet", Rarity = "Rare",
+		Id = "jupiter", Name = "Jupiter", Group = "Planet", Rarity = "Rare", RestockChance = 0.25,
 		Cost = 18000, SellValue = 25000, GrowTime = 300, Weight = { 8.0, 14.0 },
 		Description = "A giant striped gas planet with a crowd of moons.",
 		Look = {
@@ -236,7 +237,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "saturn", Name = "Saturn", Group = "Planet", Rarity = "Rare",
+		Id = "saturn", Name = "Saturn", Group = "Planet", Rarity = "Rare", RestockChance = 0.15,
 		Cost = 45000, SellValue = 60000, GrowTime = 420, Weight = { 7.0, 12.0 },
 		Description = "Famous for its glittering rings.",
 		Look = {
@@ -274,7 +275,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "uranus", Name = "Uranus", Group = "Planet", Rarity = "Epic", RestockChance = 0.5,
+		Id = "uranus", Name = "Uranus", Group = "Planet", Rarity = "Epic", RestockChance = 0.08,
 		Cost = 300000, SellValue = 400000, GrowTime = 720, Weight = { 6.0, 10.0 },
 		Description = "An icy planet spinning on its side, with thin dark rings.",
 		Look = {
@@ -293,7 +294,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "neptune", Name = "Neptune", Group = "Planet", Rarity = "Epic", RestockChance = 0.5,
+		Id = "neptune", Name = "Neptune", Group = "Planet", Rarity = "Epic", RestockChance = 0.04,
 		Cost = 800000, SellValue = 1050000, GrowTime = 900, Weight = { 6.0, 10.0 },
 		Description = "Deep blue and stormy, far from the sun.",
 		Look = {
@@ -321,7 +322,7 @@ PlanetCatalog.Planets = {
 
 	----------------------------------------------------------------- suns (the Sun shop)
 	{
-		Id = "red_dwarf", Name = "Red Dwarf", Group = "Star", Rarity = "Uncommon",
+		Id = "red_dwarf", Name = "Red Dwarf", Group = "Star", Rarity = "Uncommon", RestockChance = 0.85,
 		Cost = 7500, SellValue = 10500, GrowTime = 200, Weight = { 4.0, 7.0 },
 		Description = "A small, cool, glowing red star. The most common star there is.",
 		Look = {
@@ -333,7 +334,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "white_dwarf", Name = "White Dwarf", Group = "Star", Rarity = "Rare",
+		Id = "white_dwarf", Name = "White Dwarf", Group = "Star", Rarity = "Rare", RestockChance = 0.4,
 		Cost = 110000, SellValue = 150000, GrowTime = 540, Weight = { 6.0, 10.0 },
 		Description = "The tiny, white-hot core left behind by a dead star.",
 		Look = {
@@ -348,7 +349,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "blue_giant", Name = "Blue Giant", Group = "Star", Rarity = "Epic", RestockChance = 0.4,
+		Id = "blue_giant", Name = "Blue Giant", Group = "Star", Rarity = "Epic", RestockChance = 0.15,
 		Cost = 2000000, SellValue = 2600000, GrowTime = 1200, Weight = { 12.0, 20.0 },
 		Description = "A huge, scorching blue star that burns brighter than anything near it.",
 		Look = {
@@ -364,7 +365,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "sun", Name = "Sun", Group = "Star", Rarity = "Legendary", RestockChance = 0.4,
+		Id = "sun", Name = "Sun", Group = "Star", Rarity = "Legendary", RestockChance = 0.07,
 		Cost = 6000000, SellValue = 7800000, GrowTime = 1800, Weight = { 15.0, 25.0 },
 		Description = "A blazing star. It lights up everything around it.",
 		Look = {
@@ -380,7 +381,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "betelgeuse", Name = "Betelgeuse", Group = "Star", Rarity = "Legendary", RestockChance = 0.25,
+		Id = "betelgeuse", Name = "Betelgeuse", Group = "Star", Rarity = "Legendary", RestockChance = 0.03,
 		Cost = 18000000, SellValue = 22500000, GrowTime = 2700, Weight = { 30.0, 50.0 },
 		Description = "A red supergiant so big it would swallow Jupiter's orbit. Glowing gas boils off its surface.",
 		Look = {
@@ -397,7 +398,7 @@ PlanetCatalog.Planets = {
 		},
 	},
 	{
-		Id = "pulsar", Name = "Pulsar", Group = "Star", Rarity = "Mythic", RestockChance = 0.12,
+		Id = "pulsar", Name = "Pulsar", Group = "Star", Rarity = "Mythic", RestockChance = 0.01,
 		Cost = 60000000, SellValue = 75000000, GrowTime = 3600, Weight = { 80.0, 140.0 },
 		Description = "A spinning neutron star that fires beams of light across space.",
 		Look = {

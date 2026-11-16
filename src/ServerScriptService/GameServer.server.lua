@@ -82,6 +82,7 @@ local stock = {}
 
 -- How often something comes into stock at each restock (1 = always, 0.25 = a quarter of the time).
 -- The rest of the time it stays SOLD OUT, so players keep hunting for it.
+-- Each item's own RestockChance (PlanetCatalog / GearCatalog / PackCatalog) wins; these are only fallbacks.
 local RESTOCK_CHANCE_BY_RARITY = { Epic = 0.25 }        -- the best planet seeds in the shop (Uranus, Neptune)
 local RESTOCK_CHANCE_BY_PACK = { pack_voidheart = 0.05 } -- the best seed pack
 
@@ -110,7 +111,7 @@ local function restock()
 	end
 	for _, pack in ipairs(PackCatalog.Packs) do
 		local count = 0
-		if math.random() < (RESTOCK_CHANCE_BY_PACK[pack.Id] or 1) then
+		if math.random() < (pack.RestockChance or RESTOCK_CHANCE_BY_PACK[pack.Id] or 1) then
 			count = PackCatalog.RollStock(pack)
 		end
 		stock[pack.Id] = count

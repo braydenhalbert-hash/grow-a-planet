@@ -92,8 +92,8 @@ local SOLD_OUT_SOUND_ID = "rbxassetid://108295046133967"
 local SOLD_OUT_VOLUME = 0.7
 -- sound when the shops restock: a springy rubber-band twang (Roblox's own "Rubber band" sound,
 -- Grow a Garden style). Paste your own "rbxassetid://..." here to use a different sound.
-local RESTOCK_SOUND_ID = "rbxassetid://12222106"
-local RESTOCK_VOLUME = 0.8
+local RESTOCK_SOUND_ID = "rbxassetid://70680180672877"
+local RESTOCK_VOLUME = 1.5
 
 -- STUD LOOK inside the shop windows (round studs)
 local STUD_TEXTURE = "rbxassetid://75195146818356"
@@ -1390,29 +1390,110 @@ local function createShop(kind)
 		Size = UDim2.new(1, -20, 0, 34),
 		ZIndex = 21,
 	}, oddsPanel)
+	-- a grid of cards, Grow a Garden style: the chance it comes into stock at each restock (top right),
+	-- the item's 3D picture, and its name in its rarity colour. Rarer = lower chance.
 	local oddsScroll = make("ScrollingFrame", {
 		Position = UDim2.fromOffset(12, 50),
 		Size = UDim2.new(1, -24, 1, -112),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 6,
+		ScrollBarImageColor3 = theme.ScrollBar,
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		CanvasSize = UDim2.new(),
 		ZIndex = 21,
 	}, oddsPanel)
-	local oddsText = make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, -8, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		Font = FONT,
-		TextSize = 18,
-		TextColor3 = Color3.new(1, 1, 1),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top,
-		TextWrapped = true,
-		RichText = true,
-		ZIndex = 21,
+	make("UIPadding", {
+		PaddingLeft = UDim.new(0, 4),
+		PaddingRight = UDim.new(0, 10),
+		PaddingTop = UDim.new(0, 4),
+		PaddingBottom = UDim.new(0, 6),
 	}, oddsScroll)
+	make("UIGridLayout", {
+		CellSize = UDim2.new(0.25, -8, 0, 172),
+		CellPadding = UDim2.fromOffset(8, 8),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, oddsScroll)
+
+	local function restockChanceOf(item)
+		local source = item.Planet or item.Gear or item.Pack
+		return (source and source.RestockChance) or 1
+	end
+
+	local function buildOdds()
+		local sorted = table.clone(items)
+		table.sort(sorted, function(a, b)
+			local ca, cb = restockChanceOf(a), restockChanceOf(b)
+			if ca ~= cb then
+				return ca > cb
+			end
+			return (a.Cost or 0) < (b.Cost or 0)
+		end)
+		for index, item in ipairs(sorted) do
+			local card = make("Frame", {
+				Name = item.Id,
+				LayoutOrder = index,
+				BackgroundColor3 = Color3.new(1, 1, 1),
+				ZIndex = 22,
+			}, oddsScroll)
+			corner(card, 10)
+			make("UIGradient", {
+				Color = ColorSequence.new(theme.CardTop, theme.CardBottom),
+				Rotation = 90,
+			}, card)
+			stroke(card, item.Color, 2)
+
+			-- the chance, top right
+			label({
+				Text = formatPercent(restockChanceOf(item) * 100) .. "%",
+				TextSize = 24,
+				TextXAlignment = Enum.TextXAlignment.Right,
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -8, 0, 4),
+				Size = UDim2.new(1, -16, 0, 28),
+				ZIndex = 24,
+			}, card)
+
+			-- the picture
+			local picture = make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, 30),
+				Size = UDim2.fromOffset(96, 96),
+				BackgroundTransparency = 1,
+				ZIndex = 23,
+			}, card)
+			local viewport
+			if item.Planet then
+				viewport = makePlanetIcon(picture, item.Planet)
+			elseif item.Gear then
+				viewport = makeGearIcon(picture, item.Gear)
+			elseif item.Pack then
+				viewport = makePackViewport(picture, item.Pack.Name)
+			end
+			if viewport then
+				viewport.ZIndex = 23
+			else
+				makeHoleIcon(picture, item.Color)
+			end
+
+			-- "1x Moon Seed" in the rarity colour
+			local name = label({
+				Text = "1x " .. item.Name,
+				TextScaled = true,
+				TextWrapped = true,
+				TextTruncate = Enum.TextTruncate.None,
+				TextColor3 = item.Color,
+				TextXAlignment = Enum.TextXAlignment.Center,
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, -4),
+				Size = UDim2.new(1, -10, 0, 40),
+				ZIndex = 24,
+			}, card)
+			make("UITextSizeConstraint", { MaxTextSize = 20, MinTextSize = 10 }, name)
+		end
+	end
+	buildOdds()
+
 	local oddsClose = button({
 		Text = "CLOSE",
 		TextSize = 22,
@@ -1423,54 +1504,6 @@ local function createShop(kind)
 		ZIndex = 22,
 	}, oddsPanel)
 	corner(oddsClose, 8)
-
-	local function buildOddsText()
-		local lines = {}
-		if kind == "gear" then
-			for _, item in ipairs(items) do
-				local g = item.Gear
-				table.insert(lines, string.format(
-					'<font color="#%s"><b>%s</b></font>\n%s\nRange %d studs  ·  lasts %d min  ·  black holes: %s%% Stardust chance every 10 s\n',
-					item.Color:ToHex(), item.Name, g.Description, g.Radius, math.floor(g.Duration / 60), formatPercent(g.StardustChance * 100)
-				))
-			end
-		elseif kind == "packs" then
-			for _, item in ipairs(items) do
-				local parts = {}
-				for _, rarity in ipairs(PackCatalog.RarityOrder) do
-					if (item.Pack.Odds[rarity] or 0) > 0 then
-						table.insert(parts, string.format(
-							'<font color="#%s">%s %s%%</font>',
-							PlanetCatalog.RarityColor(rarity):ToHex(),
-							rarity,
-							formatPercent(PackCatalog.Percent(item.Pack, rarity))
-							))
-					end
-				end
-				table.insert(lines, string.format('<b>%s</b>\n%s\n', item.Name, table.concat(parts, "  ·  ")))
-			end
-		else
-			-- how likely each seed is to show up in a restock (if the game says), grouped by rarity
-			local total, weights = 0, {}
-			for _, item in ipairs(items) do
-				local ok, w = pcall(PlanetCatalog.RollWeight, item.Planet)
-				if not (ok and type(w) == "number") then
-					ok, w = pcall(PlanetCatalog.RollWeight, item.Planet.Rarity)
-				end
-				weights[item.Id] = (ok and type(w) == "number") and w or nil
-				total += weights[item.Id] or 0
-			end
-			for _, item in ipairs(items) do
-				local chance = (total > 0 and weights[item.Id]) and string.format("  %s%%", formatPercent(weights[item.Id] / total * 100)) or ""
-				table.insert(lines, string.format(
-					'<font color="#%s">%s  —  %s%s</font>',
-					item.Color:ToHex(), item.Name, item.Rarity, chance
-					))
-			end
-		end
-		oddsText.Text = table.concat(lines, "\n")
-	end
-	buildOddsText()
 
 	oddsBtn.Activated:Connect(function()
 		oddsPanel.Visible = not oddsPanel.Visible
