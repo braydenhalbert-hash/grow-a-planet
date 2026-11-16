@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local MutationCatalog = require(ReplicatedStorage:WaitForChild("MutationCatalog"))
+local WeatherConfig = require(ReplicatedStorage:WaitForChild("WeatherConfig"))
 
 local LiveOps = {}
 
@@ -29,16 +30,12 @@ LiveOps.Multipliers = {
 	{ Id = "Size", Name = "Size Luck", Desc = "Chance of Huge / Insane / Crazy planets", Max = 50 },
 }
 
--- Boost = the mutation this weather makes twice as likely (skipped if that mutation doesn't exist)
-LiveOps.Weather = {
-	{ Id = "clear", Name = "Clear Skies", Desc = "Normal space" },
-	{ Id = "starfall", Name = "Starfall", Desc = "Shooting stars rain down", Boost = "meteor" },
-	{ Id = "nebulastorm", Name = "Nebula Storm", Desc = "Pink and purple nebula clouds", Boost = "nebula" },
-	{ Id = "solarstorm", Name = "Solar Storm", Desc = "Blazing orange sky", Boost = "solarflare" },
-	{ Id = "aurora", Name = "Cosmic Aurora", Desc = "Icy green-blue glow", Boost = "frozen" },
-	{ Id = "eclipse", Name = "Eclipse", Desc = "The sky goes dark", Boost = "supernova" },
-	{ Id = "stardust", Name = "Stardust Rain", Desc = "Glittering stardust everywhere", Boost = "stardust" },
-}
+-- Boost = the mutation this weather makes twice as likely on new seeds (skipped if that mutation doesn't exist)
+-- The list comes from WeatherConfig (ReplicatedStorage): add weather there.
+LiveOps.Weather = { { Id = "clear", Name = "Clear Skies", Desc = "Normal space" } }
+for _, w in ipairs(WeatherConfig.List) do
+	table.insert(LiveOps.Weather, { Id = w.Id, Name = w.Name, Desc = w.Desc, Boost = w.Boost })
+end
 
 local state = Instance.new("Folder")
 state.Name = "LiveOps"
@@ -57,6 +54,7 @@ state:SetAttribute("EventBoost", 1)
 state:SetAttribute("EventUntil", 0)
 state:SetAttribute("Weather", "clear")
 state:SetAttribute("WeatherUntil", 0)
+state:SetAttribute("WeatherStarted", 0)
 state:SetAttribute("Announce", "")
 state:SetAttribute("AnnounceBy", "")
 state:SetAttribute("AnnounceAt", 0)
@@ -79,9 +77,15 @@ function LiveOps.Get(id)
 	end
 	local untilTime = state:GetAttribute("Until_" .. id) or 0
 	if untilTime > 0 and now() > untilTime then
-		return 1
+		value = 1
 	end
-	return value
+	-- live events (WeatherServer) stack their own boost on top
+	return value * (state:GetAttribute("XMult_" .. id) or 1)
+end
+
+-- a live event's boost for a multiplier (1 = none). Separate from the admin one, so they never fight.
+function LiveOps.SetExtra(id, value)
+	state:SetAttribute("XMult_" .. id, value or 1)
 end
 
 -- seconds = 0 means "until changed"
@@ -119,6 +123,7 @@ function LiveOps.SetWeather(id, seconds)
 	end
 	state:SetAttribute("Weather", id)
 	state:SetAttribute("WeatherUntil", (id ~= "clear" and seconds and seconds > 0) and (now() + seconds) or 0)
+	state:SetAttribute("WeatherStarted", now())
 	return true
 end
 

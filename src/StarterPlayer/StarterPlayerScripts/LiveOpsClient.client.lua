@@ -2,7 +2,6 @@
 	LiveOpsClient  (LocalScript)  -- StarterPlayer > StarterPlayerScripts
 
 	What every player sees from the admin panel's World controls (LiveOps on the server):
-	  * weather       sky tint + falling stardust around the camera
 	  * announcements a glowing banner at the top of the screen
 	  * boosts        little pills under it: "2x Coins 12:30", "Meteor Event x5", "Starfall"
 	Reads the attributes on ReplicatedStorage.LiveOps, so it changes the moment an admin presses a button.
@@ -19,7 +18,6 @@ local state = ReplicatedStorage:WaitForChild("LiveOps", 60)
 if not state then
 	return
 end
-local Stardust = require(ReplicatedStorage:WaitForChild("Stardust"))
 local MutationCatalog = require(ReplicatedStorage:WaitForChild("MutationCatalog"))
 
 local rgb = Color3.fromRGB
@@ -27,63 +25,7 @@ local function tween(o, t, props)
 	TweenService:Create(o, TweenInfo.new(t, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props):Play()
 end
 
----------------------------------------------------------------------
--- Weather
----------------------------------------------------------------------
-local WEATHER = {
-	clear = { Tint = rgb(255, 255, 255), Bright = 0, Sat = 0, Rate = 0 },
-	starfall = { Tint = rgb(225, 235, 255), Bright = 0, Sat = 0.1, Rate = 40, Tex = "Star", Colors = { rgb(255, 245, 200), rgb(150, 200, 255), rgb(255, 255, 255) }, Speed = 70, Size = 1.6 },
-	nebulastorm = { Tint = rgb(240, 200, 255), Bright = 0, Sat = 0.25, Rate = 25, Tex = "Nebula", Colors = { rgb(255, 110, 230), rgb(150, 80, 255), rgb(255, 210, 250) }, Speed = 12, Size = 6 },
-	solarstorm = { Tint = rgb(255, 215, 170), Bright = 0.03, Sat = 0.2, Rate = 45, Tex = "Wisp", Colors = { rgb(255, 160, 40), rgb(255, 70, 30), rgb(255, 235, 160) }, Speed = 25, Size = 2.2 },
-	aurora = { Tint = rgb(200, 255, 240), Bright = 0, Sat = 0.15, Rate = 30, Tex = "Glint", Colors = { rgb(80, 255, 200), rgb(80, 180, 255), rgb(220, 255, 250) }, Speed = 8, Size = 1.4 },
-	eclipse = { Tint = rgb(170, 160, 210), Bright = -0.12, Sat = -0.2, Rate = 18, Tex = "Void", Colors = { rgb(150, 70, 255), rgb(60, 20, 120), rgb(220, 160, 255) }, Speed = 6, Size = 3 },
-	stardust = { Tint = rgb(255, 245, 225), Bright = 0.02, Sat = 0.15, Rate = 70, Tex = "Dust", Colors = { rgb(255, 220, 120), rgb(255, 140, 230), rgb(255, 255, 230) }, Speed = 14, Size = 1.2 },
-}
-
-local cc = Lighting:FindFirstChild("LiveOpsWeather") or Instance.new("ColorCorrectionEffect")
-cc.Name = "LiveOpsWeather"
-cc.Parent = Lighting
-
-local sky = Instance.new("Part")
-sky.Name = "LiveOpsWeatherEmitter"
-sky.Anchored, sky.CanCollide, sky.CanQuery, sky.CanTouch = true, false, false, false
-sky.Transparency = 1
-sky.Size = Vector3.new(160, 1, 160)
-sky.Parent = workspace.CurrentCamera
-local emitter = Instance.new("ParticleEmitter")
-emitter.EmissionDirection = Enum.NormalId.Bottom
-emitter.Lifetime = NumberRange.new(3, 5)
-emitter.LightEmission = 1
-emitter.LightInfluence = 0
-emitter.Rotation = NumberRange.new(0, 360)
-emitter.RotSpeed = NumberRange.new(-60, 60)
-emitter.Transparency = Stardust.FADE
-emitter.Rate = 0
-emitter.Parent = sky
-
-local function applyWeather()
-	local w = WEATHER[state:GetAttribute("Weather") or "clear"] or WEATHER.clear
-	tween(cc, 2, { TintColor = w.Tint, Brightness = w.Bright, Saturation = w.Sat })
-	emitter.Rate = w.Rate
-	if w.Rate > 0 then
-		emitter.Texture = Stardust.Texture(w.Tex)
-		emitter.Color = Stardust.Colors(w.Colors)
-		emitter.Speed = NumberRange.new(w.Speed * 0.7, w.Speed)
-		emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, w.Size), NumberSequenceKeypoint.new(1, w.Size * 0.4) })
-	end
-end
-state:GetAttributeChangedSignal("Weather"):Connect(applyWeather)
-applyWeather()
-
-RunService.RenderStepped:Connect(function()
-	local camera = workspace.CurrentCamera
-	if camera and emitter.Rate > 0 then
-		if sky.Parent ~= camera then
-			sky.Parent = camera
-		end
-		sky.CFrame = CFrame.new(camera.CFrame.Position + Vector3.new(0, 45, 0))
-	end
-end)
+-- (the weather itself is drawn by WeatherClient, and its HUD card by WeatherHUD)
 
 ---------------------------------------------------------------------
 -- Banner + boost pills
@@ -164,7 +106,6 @@ layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.Padding = UDim.new(0, 6)
 
 local NAMES = { Coins = "Coins", Growth = "Growth", Luck = "Luck", Size = "Size Luck" }
-local WEATHER_NAMES = { starfall = "Starfall", nebulastorm = "Nebula Storm", solarstorm = "Solar Storm", aurora = "Cosmic Aurora", eclipse = "Eclipse", stardust = "Stardust Rain" }
 
 local function timeLeft(untilTime)
 	if not untilTime or untilTime <= 0 then
@@ -211,10 +152,6 @@ local function drawPills()
 	if event ~= "" then
 		local m = MutationCatalog.Get(event)
 		pill(string.format("%s Event x%s", m and m.Name or event, tostring(state:GetAttribute("EventBoost") or 1)) .. timeLeft(state:GetAttribute("EventUntil")), rgb(190, 120, 255))
-	end
-	local weather = state:GetAttribute("Weather") or "clear"
-	if WEATHER_NAMES[weather] then
-		pill(WEATHER_NAMES[weather] .. timeLeft(state:GetAttribute("WeatherUntil")), rgb(255, 200, 90))
 	end
 end
 state.AttributeChanged:Connect(drawPills)

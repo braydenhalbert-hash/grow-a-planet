@@ -1258,7 +1258,9 @@ task.spawn(function()
 		local w = live:GetAttribute("Weather")
 		if w and w ~= "clear" and not isDone("weather:" .. w) then
 			markDone("weather:" .. w)
-			react("Cosmo", fill(pick(Steps.Reactions.Weather), { weather = string.upper(w) }), "surprised")
+			local okConfig, WeatherConfig = pcall(require, ReplicatedStorage:FindFirstChild("WeatherConfig"))
+			local info = okConfig and WeatherConfig and WeatherConfig.Get(w)
+			react("Cosmo", fill(pick(Steps.Reactions.Weather), { weather = string.upper(info and info.Name or w) }), "surprised")
 		end
 	end)
 	live:GetAttributeChangedSignal("Event"):Connect(function()

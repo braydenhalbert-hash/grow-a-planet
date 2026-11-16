@@ -348,6 +348,352 @@ local function sprinklerAura(body, r, m)
 end
 
 ---------------------------------------------------------------------
+-- SPACE WEATHER mutations (Style = "weather"): every look is described in MutationCatalog (Look = {...})
+-- and built here out of particle layers, glowing rings, orbiting bits, shells, beams and outlines.
+-- The rings / orbiters / beams live in their own folder per planet and follow the planet every frame
+-- (planets grow, so everything is sized from the planet's CURRENT radius).
+---------------------------------------------------------------------
+local TEXTURES = { SPARKLE = SPARKLE, FIRE = FIRE, SMOKE = SMOKE }
+local function lookTexture(name)
+	return TEXTURES[name] or Stardust.Texture(name)
+end
+
+local function liveRadius(body)
+	return math.max(body.Size.X, body.Size.Y, body.Size.Z) / 2
+end
+
+local function lookPart(parent, shape, color, material, transparency)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Shape = shape or Enum.PartType.Block
+	p.Material = material or Enum.Material.Neon
+	p.Color = color
+	p.Transparency = transparency or 0
+	p.Size = Vector3.one
+	p.Parent = parent
+	return p
+end
+
+-- a glowing ring drawn on a thin invisible plate (crisp at any size, glows with Bloom)
+local function ringPlate(parent, def)
+	local plate = lookPart(parent, Enum.PartType.Block, Color3.new(), Enum.Material.SmoothPlastic, 1)
+	plate.Name = "Ring"
+	local strokes = {}
+	for _, face in ipairs({ Enum.NormalId.Top, Enum.NormalId.Bottom }) do
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+		gui.CanvasSize = Vector2.new(256, 256)
+		gui.LightInfluence = 0
+		gui.Brightness = def.Glow or 2.5
+		gui.AlwaysOnTop = false
+		gui.Parent = plate
+		local circle = Instance.new("Frame")
+		circle.AnchorPoint = Vector2.new(0.5, 0.5)
+		circle.Position = UDim2.fromScale(0.5, 0.5)
+		circle.Size = UDim2.fromScale(1, 1)
+		circle.BackgroundTransparency = 1
+		circle.Parent = gui
+		Instance.new("UICorner", circle).CornerRadius = UDim.new(0.5, 0)
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.new(1, 1, 1)
+		stroke.Transparency = def.T or 0
+		-- W is the band's width compared with the ring's radius
+		stroke.Thickness = math.clamp(128 * (def.W or 0.08) / (def.R or 1.5), 2, 110)
+		stroke.Parent = circle
+		local gradient = Instance.new("UIGradient")
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, def.Color),
+			ColorSequenceKeypoint.new(0.5, def.Color2 or Color3.new(1, 1, 1):Lerp(def.Color, 0.55)),
+			ColorSequenceKeypoint.new(1, def.Color),
+		})
+		gradient.Parent = stroke
+		table.insert(strokes, { Stroke = stroke, Gradient = gradient })
+	end
+	return plate, strokes
+end
+
+local function lookAura(body, r, m)
+	local look = m.Look or {}
+	local k = math.clamp(r / 3, 0.5, 3) -- particle speeds grow a little with the planet
+	local emitters = {}
+	local holder = Instance.new("Folder")
+	holder.Name = "Look_" .. m.Id
+
+	-- particle layers
+	for _, e in ipairs(look.Emit or {}) do
+		local host = body
+		local shellRadius = r * (e.Shell or 1)
+		if e.Shell then
+			host = Instance.new("Part")
+			host.Name = "LookShell"
+			host.Shape = Enum.PartType.Ball
+			host.Size = Vector3.one * shellRadius * 2
+			host.Anchored = true
+			host.CanCollide = false
+			host.CanQuery = false
+			host.CanTouch = false
+			host.Transparency = 1
+			host.CFrame = body.CFrame
+			host.Parent = body
+		end
+		local life = e.Life or { 1, 2 }
+		local speed = e.Speed or { 0.5, 1.5 }
+		local t0 = e.T0 or 0
+		local spin = e.Spin or 60
+		local em = emitter(host, {
+			Texture = lookTexture(e.Tex), Rate = e.Rate or 10,
+			Lifetime = NumberRange.new(life[1], life[2]),
+			Shape = Enum.ParticleEmitterShape.Sphere,
+			ShapeStyle = e.Volume and Enum.ParticleEmitterShapeStyle.Volume or Enum.ParticleEmitterShapeStyle.Surface,
+			Size = NumberSequence.new(r * (e.Size and e.Size[1] or 0.3), r * (e.Size and e.Size[2] or 0)),
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.12, t0), NumberSequenceKeypoint.new(1, 1) }),
+			Speed = e.Inward and NumberRange.new((shellRadius - r * 0.9) / life[1]) or NumberRange.new(speed[1] * k, speed[2] * k),
+			RotSpeed = NumberRange.new(-spin, spin),
+			Acceleration = e.Accel and Vector3.new(e.Accel[1], e.Accel[2], e.Accel[3]) * k or Vector3.zero,
+			Drag = e.Drag or 0,
+			Color = seq(e.C1 or m.Color, e.C2 or m.Color2),
+			LightEmission = e.LE or 1,
+		})
+		if e.Inward then
+			em.ShapeInOut = Enum.ParticleEmitterShapeInOut.Inward
+		end
+		table.insert(emitters, em)
+	end
+
+	-- light
+	local flickerLight = nil
+	if look.Light then
+		local light = Instance.new("PointLight")
+		light.Name = "LookLight"
+		light.Color = look.Light.Color or m.Color
+		light.Range = math.clamp(r * (look.Light.Range or 4), 8, 60)
+		light.Brightness = look.Light.Brightness or 1.5
+		light.Parent = body
+		if look.Light.Flicker then
+			flickerLight = light
+		end
+		table.insert(emitters, light)
+	end
+
+	local anim = { Holder = holder, Rings = {}, Orbit = {}, Look = look, Mutation = m, Born = os.clock(),
+		Light = flickerLight, LightBase = look.Light and look.Light.Brightness or 1.5 }
+
+	for _, def in ipairs(look.Rings or {}) do
+		local plate, strokes = ringPlate(holder, def)
+		table.insert(anim.Rings, { Part = plate, Def = def, Strokes = strokes, Phase = math.random() * 360 })
+	end
+
+	for _, def in ipairs(look.Orbit or {}) do
+		for i = 1, def.N or 3 do
+			local shape = def.Shape == "Block" and Enum.PartType.Block or def.Shape == "Wedge" and Enum.PartType.Wedge or Enum.PartType.Ball
+			local material = def.Mat and Enum.Material[def.Mat] or Enum.Material.Neon
+			local p = lookPart(holder, shape, def.Color, material, def.Mat == "Glass" and 0.3 or 0)
+			p.Name = "Orbiter"
+			if def.Trail then
+				local a0 = Instance.new("Attachment")
+				a0.Position = Vector3.new(0, 0.5, 0)
+				a0.Parent = p
+				local a1 = Instance.new("Attachment")
+				a1.Position = Vector3.new(0, -0.5, 0)
+				a1.Parent = p
+				local trail = Instance.new("Trail")
+				trail.Attachment0 = a0
+				trail.Attachment1 = a1
+				trail.Color = ColorSequence.new(def.Color)
+				trail.LightEmission = 1
+				trail.LightInfluence = 0
+				trail.Lifetime = 0.45
+				trail.Transparency = NumberSequence.new(0.2, 1)
+				trail.FaceCamera = true
+				trail.Parent = p
+			end
+			table.insert(anim.Orbit, { Part = p, Def = def, Offset = (i - 1) / (def.N or 3), Spin = Vector3.new(math.random(), math.random(), math.random()) })
+		end
+	end
+
+	if look.Shell then
+		local s = look.Shell
+		anim.Shell = lookPart(holder, Enum.PartType.Ball, s.Color, s.Mat and Enum.Material[s.Mat] or Enum.Material.ForceField, s.T or 0.6)
+		anim.Shell.Name = "Shell"
+	end
+
+	local function beam(a0, a1, color, width0, width1, tex, speed)
+		local b = Instance.new("Beam")
+		b.Attachment0 = a0
+		b.Attachment1 = a1
+		b.Color = ColorSequence.new(color, Color3.new(1, 1, 1):Lerp(color, 0.4))
+		b.LightEmission = 1
+		b.LightInfluence = 0
+		b.Texture = Stardust.Texture(tex or "Flow")
+		b.TextureMode = Enum.TextureMode.Wrap
+		b.TextureLength = 6
+		b.TextureSpeed = speed or 1.5
+		b.Width0 = width0
+		b.Width1 = width1
+		b.FaceCamera = true
+		b.Segments = 1
+		b.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+		b.Parent = a0.Parent
+		return b
+	end
+
+	if look.Jets or look.Pillar then
+		anim.Anchor = lookPart(holder, Enum.PartType.Block, Color3.new(), Enum.Material.SmoothPlastic, 1)
+		anim.Anchor.Name = "BeamAnchor"
+		local center = Instance.new("Attachment")
+		center.Parent = anim.Anchor
+		anim.Center = center
+		anim.Beams = {}
+		if look.Jets then
+			for _, dir in ipairs({ 1, -1 }) do
+				local tip = Instance.new("Attachment")
+				tip.Parent = anim.Anchor
+				local b = beam(center, tip, look.Jets.Color, 1, 1, "Flow", 4)
+				table.insert(anim.Beams, { Beam = b, Tip = tip, Dir = dir, Kind = "jet" })
+			end
+		end
+		if look.Pillar then
+			local top = Instance.new("Attachment")
+			top.Parent = anim.Anchor
+			local b = beam(center, top, look.Pillar.Color, 1, 1, "Flow", -2)
+			b.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 0.85) })
+			table.insert(anim.Beams, { Beam = b, Tip = top, Dir = 1, Kind = "pillar" })
+		end
+	end
+
+	anim.NextPulse = os.clock() + math.random() * 2
+	anim.NextArc = os.clock() + math.random()
+	return emitters, anim
+end
+
+local function arcBolt(center, radius, color)
+	-- a short jagged spark hopping across the planet's surface
+	local a = Random.new():NextUnitVector() * radius * 1.05
+	local b = (a + Random.new():NextUnitVector() * radius * 0.9).Unit * radius * 1.1
+	local points = { center + a }
+	for i = 1, 3 do
+		local p = center + a:Lerp(b, i / 4)
+		points[#points + 1] = p + Random.new():NextUnitVector() * radius * 0.12
+	end
+	points[#points + 1] = center + b
+	for i = 1, #points - 1 do
+		local p0, p1 = points[i], points[i + 1]
+		local len = (p1 - p0).Magnitude
+		local seg = fxPart((p0 + p1) / 2, Vector3.new(radius * 0.04, radius * 0.04, len), color, Enum.PartType.Block, 0)
+		seg.CFrame = CFrame.lookAt((p0 + p1) / 2, p1)
+		Debris:AddItem(seg, 0.12)
+	end
+end
+
+local function hueShift(color, now, speed)
+	local h, s, v = color:ToHSV()
+	return Color3.fromHSV((h + now * (speed or 0.15)) % 1, math.max(s, 0.55), v)
+end
+
+-- moves everything that follows a planet (called every frame for nearby planets)
+local function updateLook(anim, body, now, dt)
+	local cf = body.CFrame
+	local pos = cf.Position
+	local r = liveRadius(body)
+	local look = anim.Look
+	local age = now - anim.Born
+
+	for _, ring in ipairs(anim.Rings) do
+		local d = ring.Def
+		local diameter = r * 2 * (d.R or 1.5)
+		local y = (d.Y or 0) * r
+		local tilt = CFrame.Angles(math.rad(d.Tilt or 0), 0, 0)
+		local offset = Vector3.new(0, y, 0)
+		if d.Scan then
+			offset = Vector3.new(0, math.sin(age * 2.2) * r * 0.95, 0)
+			local scale = math.sqrt(math.max(0, 1 - (offset.Y / (r * 1.05)) ^ 2))
+			diameter = r * 2 * (d.R or 1.3) * math.max(scale, 0.25)
+		end
+		ring.Part.Size = Vector3.new(diameter, 0.05, diameter)
+		ring.Part.CFrame = CFrame.new(pos + offset) * tilt * CFrame.Angles(0, math.rad(ring.Phase + age * (d.Spin or 0)), 0)
+		for _, s in ipairs(ring.Strokes) do
+			s.Gradient.Rotation = (age * 90 + ring.Phase) % 360
+			if look.Rainbow then
+				s.Stroke.Color = hueShift(Color3.new(1, 0.4, 0.4), now + ring.Phase, 0.12)
+			end
+		end
+	end
+
+	for _, o in ipairs(anim.Orbit) do
+		local d = o.Def
+		local angle = (o.Offset + age * (d.Speed or 0.3)) * math.pi * 2
+		local radius = r * (d.R or 1.6)
+		local local3 = Vector3.new(math.cos(angle) * radius, math.sin(angle * 2) * r * 0.08, math.sin(angle) * radius)
+		local tilted = CFrame.Angles(math.rad(d.Tilt or 0), 0, 0):VectorToWorldSpace(local3)
+		local size = r * (d.S or 0.15)
+		o.Part.Size = Vector3.one * size
+		o.Part.CFrame = CFrame.new(pos + tilted) * CFrame.Angles(o.Spin.X * age * 2, o.Spin.Y * age * 2, o.Spin.Z * age * 2)
+	end
+
+	if anim.Shell then
+		local s = look.Shell.S or 1.05
+		anim.Shell.Size = Vector3.one * r * 2 * s
+		anim.Shell.CFrame = cf * CFrame.Angles(0, age * 0.3, 0)
+	end
+
+	if anim.Anchor then
+		anim.Anchor.CFrame = CFrame.new(pos)
+		for _, b in ipairs(anim.Beams) do
+			if b.Kind == "jet" then
+				local jet = look.Jets
+				b.Tip.Position = Vector3.new(0, b.Dir * r * (jet.L or 8) * (0.9 + math.sin(age * 6) * 0.1), 0)
+				b.Beam.Width0 = r * (jet.W or 0.4)
+				b.Beam.Width1 = r * (jet.W or 0.4) * 2.5
+			else
+				local pillar = look.Pillar
+				b.Tip.Position = Vector3.new(0, pillar.H or 26, 0)
+				b.Beam.Width0 = r * (pillar.W or 1.5) * 1.2
+				b.Beam.Width1 = r * (pillar.W or 1.5) * 2.2
+			end
+		end
+	end
+
+	if look.Pulse and now >= anim.NextPulse then
+		anim.NextPulse = now + (look.Pulse.Every or 2.5)
+		local p = look.Pulse
+		local ball = fxPart(pos, Vector3.one * r * 2, look.Rainbow and hueShift(p.Color, now) or p.Color, Enum.PartType.Ball, 0.55)
+		ball.Material = Enum.Material.ForceField
+		local big = r * (p.S or 4)
+		TweenService:Create(ball, TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = Vector3.one * big, Transparency = 1 }):Play()
+		Debris:AddItem(ball, 1.2)
+	end
+
+	if look.Arcs and now >= anim.NextArc then
+		anim.NextArc = now + (look.Arcs.Every or 0.4) * (0.6 + math.random() * 0.8)
+		arcBolt(pos, r, look.Arcs.Color)
+	end
+end
+
+-- glowing outlines: Roblox only draws a limited number of Highlights at once, so only the
+-- closest outlined planets get one
+local MAX_OUTLINES = 14
+local outlinePool = {}
+local function getOutline(i)
+	local h = outlinePool[i]
+	if not h then
+		h = Instance.new("Highlight")
+		h.Name = "MutationOutline"
+		h.DepthMode = Enum.HighlightDepthMode.Occluded
+		h.Enabled = false
+		h.Parent = fxFolder
+		outlinePool[i] = h
+	end
+	return h
+end
+
+---------------------------------------------------------------------
 -- Tracking mutated planets
 ---------------------------------------------------------------------
 local active = {} -- model -> { Key, Ids, Has, Items, Body, Radius, NextMeteor, Seed, ... }
@@ -357,9 +703,7 @@ local function clearActive(model)
 	if info then
 		active[model] = nil
 		for _, item in ipairs(info.Items) do
-			if item.Parent then
-				item:Destroy()
-			end
+			item:Destroy() -- (some are hidden with no parent while you're far away)
 		end
 	end
 end
@@ -382,6 +726,7 @@ local function setup(model)
 		end
 		local r = model:GetAttribute("BodyRadius") or 3
 		local items, has = {}, {}
+		local anims, outline = {}, nil
 		-- every mutation keeps its own look, so a planet with two mutations shows both
 		for _, id in ipairs(ids) do
 			has[id] = true
@@ -390,9 +735,24 @@ local function setup(model)
 				before[child] = true
 			end
 			local info = MutationCatalog.Get(id)
-			local build = auraBuilders[id] or (info and info.Style == "sprinkler" and sprinklerAura)
-			if build then
-				build(body, r, MutationCatalog.Get(id))
+			if info and info.Style == "weather" then
+				local made, anim = lookAura(body, r, info)
+				for _, item in ipairs(made) do
+					table.insert(items, item)
+				end
+				anim.Holder.Parent = fxFolder
+				table.insert(items, anim.Holder)
+				table.insert(anims, anim)
+				local look = info.Look or {}
+				local tier = MutationCatalog.RarityOf(id).Tier
+				if look.Outline and (not outline or tier > outline.Tier) then
+					outline = { Color = look.Outline, Fill = look.Fill, FillT = look.FillT, Rainbow = look.Rainbow, Tier = tier }
+				end
+			else
+				local build = auraBuilders[id] or (info and info.Style == "sprinkler" and sprinklerAura)
+				if build then
+					build(body, r, MutationCatalog.Get(id))
+				end
 			end
 			for _, child in ipairs(body:GetChildren()) do
 				if not before[child] then
@@ -403,6 +763,7 @@ local function setup(model)
 		active[model] = {
 			Key = key, Ids = ids, Has = has, Items = items, Body = body, Radius = r,
 			NextMeteor = os.clock() + math.random() * METEOR_EVERY, Seed = math.random() * 10,
+			Anims = anims, Outline = outline,
 		}
 	end
 	model:GetAttributeChangedSignal("Mutations"):Connect(refresh)
@@ -417,7 +778,8 @@ plantsFolder.ChildAdded:Connect(function(model)
 end)
 plantsFolder.ChildRemoved:Connect(clearActive)
 
-RunService.Heartbeat:Connect(function()
+local nextOutlineSort = 0
+RunService.Heartbeat:Connect(function(dt)
 	local camera = workspace.CurrentCamera
 	if not camera then
 		return
@@ -425,13 +787,32 @@ RunService.Heartbeat:Connect(function()
 	local camPos = camera.CFrame.Position
 	local now = os.clock()
 	local filtered = false
+	local outlined = (now >= nextOutlineSort) and {} or nil
 
 	for model, info in pairs(active) do
 		if not model.Parent or not info.Body.Parent then
 			clearActive(model)
 		else
 			local center = info.Body.Position
-			local near = (center - camPos).Magnitude <= SHOW_DISTANCE
+			local distance = (center - camPos).Magnitude
+			local near = distance <= SHOW_DISTANCE
+
+			-- space weather looks: rings, orbiters, beams... (hidden when you're far away)
+			for _, anim in ipairs(info.Anims or {}) do
+				local parent = near and fxFolder or nil
+				if anim.Holder.Parent ~= parent then
+					anim.Holder.Parent = parent
+				end
+				if near then
+					updateLook(anim, info.Body, now, dt)
+					if anim.Light then
+						anim.Light.Brightness = anim.LightBase * (0.6 + math.noise(now * 6, info.Seed) * 0.8 + 0.4 * math.random())
+					end
+				end
+			end
+			if outlined and info.Outline and near then
+				table.insert(outlined, { Model = model, Distance = distance, Outline = info.Outline })
+			end
 
 			for _, item in ipairs(info.Items) do
 				if item:IsA("ParticleEmitter") then
@@ -481,6 +862,39 @@ RunService.Heartbeat:Connect(function()
 					Debris:AddItem(ring, 1.2)
 				end
 			end
+		end
+	end
+
+	-- glowing outlines go to the closest outlined planets (rarest first when it's a tie)
+	if outlined then
+		nextOutlineSort = now + 0.5
+		table.sort(outlined, function(a, b)
+			return a.Distance - a.Outline.Tier * 12 < b.Distance - b.Outline.Tier * 12
+		end)
+		for i = 1, MAX_OUTLINES do
+			local entry = outlined[i]
+			local h = outlinePool[i] or (entry and getOutline(i))
+			if h then
+				if entry then
+					local o = entry.Outline
+					h.Adornee = entry.Model
+					h.OutlineColor = o.Color
+					h.OutlineTransparency = 0
+					h.FillColor = o.Fill or o.Color
+					h.FillTransparency = o.FillT or 1
+					h:SetAttribute("Rainbow", o.Rainbow == true)
+					h:SetAttribute("Base", o.Color)
+					h.Enabled = true
+				else
+					h.Enabled = false
+					h.Adornee = nil
+				end
+			end
+		end
+	end
+	for _, h in ipairs(outlinePool) do
+		if h.Enabled and h:GetAttribute("Rainbow") then
+			h.OutlineColor = hueShift(Color3.fromRGB(255, 90, 90), now, 0.2)
 		end
 	end
 end)
@@ -664,6 +1078,60 @@ local function sprinklerBurst(pos, r, m)
 	end)
 end
 
+-- space weather mutations: the rarer, the bigger the show
+local function weatherBurst(pos, r, m)
+	local tier = MutationCatalog.RarityOf(m.Id).Tier
+	local look = m.Look or {}
+	local c1, c2 = m.Color, m.Color2
+	flash(pos, c1, r * (6 + tier * 2), 0.6 + tier * 0.15)
+	shockwave(pos, c1, r, r * (5 + tier * 1.5), 0.6 + tier * 0.08, 0.3)
+	if tier >= 3 then
+		task.delay(0.12, function()
+			shockwave(pos, c2, r, r * (7 + tier * 2), 0.9 + tier * 0.1, 0.45)
+		end)
+		groundRing(pos - Vector3.new(0, r, 0), c1, r * (6 + tier * 2.5), 1)
+	end
+	local first = look.Emit and look.Emit[1]
+	burstParticles(pos, {
+		Texture = first and lookTexture(first.Tex) or SPARKLE, Lifetime = NumberRange.new(1, 2),
+		Size = NumberSequence.new(r * 0.4, 0), Speed = NumberRange.new(8, 16 + tier * 5),
+		RotSpeed = NumberRange.new(-150, 150), Color = seq(c1, c2),
+	}, 30 + tier * 25)
+	if tier >= 5 then
+		-- a beam of light shoots up into the sky so the whole server sees it
+		local column = fxPart(pos + Vector3.new(0, 60, 0), Vector3.new(r * 1.2, 120, r * 1.2), c1, Enum.PartType.Cylinder, 0.2)
+		column.CFrame = CFrame.new(pos + Vector3.new(0, 60, 0)) * CFrame.Angles(0, 0, math.pi / 2)
+		column.Size = Vector3.new(120, r * 1.2, r * 1.2)
+		TweenService:Create(column, TweenInfo.new(1.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = Vector3.new(220, r * 0.1, r * 0.1), Transparency = 1 }):Play()
+		Debris:AddItem(column, 2)
+		burstParticles(pos, {
+			Texture = SPARKLE, Lifetime = NumberRange.new(1.5, 3), Size = NumberSequence.new(r * 0.5, 0),
+			Speed = NumberRange.new(20, 50), Color = seq(Color3.new(1, 1, 1), c2),
+		}, 60 + tier * 20)
+	end
+	if tier >= 6 then
+		for i = 1, tier - 4 do
+			task.delay(0.25 * i, function()
+				shockwave(pos, i % 2 == 0 and c1 or c2, r, r * (14 + i * 6), 1.4, 0.4)
+			end)
+		end
+	end
+	if tier >= 7 then
+		-- TON-618 level: the light bends inward first, then everything explodes outward
+		local implode = fxPart(pos, Vector3.one * r * 30, c2, Enum.PartType.Ball, 0.85)
+		implode.Material = Enum.Material.ForceField
+		TweenService:Create(implode, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ Size = Vector3.one * r, Transparency = 0.2 }):Play()
+		Debris:AddItem(implode, 0.75)
+		task.delay(0.7, function()
+			flash(pos, Color3.new(1, 1, 1), r * 40, 2.5)
+			shockwave(pos, Color3.new(1, 1, 1), r, r * 45, 2, 0.1)
+			groundRing(pos - Vector3.new(0, r, 0), c1, r * 60, 2.2)
+		end)
+	end
+end
+
 gainedRemote.OnClientEvent:Connect(function(model, mutId)
 	local mutation = MutationCatalog.Get(mutId)
 	if typeof(model) ~= "Instance" or not mutation then
@@ -675,6 +1143,7 @@ gainedRemote.OnClientEvent:Connect(function(model, mutId)
 	end
 	local r = model:GetAttribute("BodyRadius") or 3
 	local style = burstStyles[mutId] or (mutation.Style == "sprinkler" and sprinklerBurst)
+		or (mutation.Style == "weather" and weatherBurst)
 	if style then
 		pcall(style, body.Position, r, mutation, model)
 	end

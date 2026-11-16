@@ -97,6 +97,39 @@ AudioConfig.Sfx = {
 	mutation_supernova  = { Id = "rbxassetid://120340597894345", Volume = 1.0, Cooldown = 0.3, MaxAtOnce = 2 },
 	mutation_stardust   = { Id = "", Fallback = "mutation_nebula" }, -- paste its own sound here; until then it uses the Nebula one
 	meteor_impact       = { Id = "rbxassetid://104525134789069", Volume = 0.55, Pitch = { 0.85, 1.2 }, Cooldown = 0.12, MaxAtOnce = 4 },
+	-- space weather mutations: paste their own sounds here; until then they borrow the closest one
+	mutation_starsoaked  = { Id = "", Fallback = "mutation_frozen" },
+	mutation_cosmic      = { Id = "", Fallback = "mutation_nebula" },
+	mutation_ionized     = { Id = "", Fallback = "mutation_solarflare" },
+	mutation_molten      = { Id = "", Fallback = "mutation_meteor" },
+	mutation_aurora      = { Id = "", Fallback = "mutation_nebula" },
+	mutation_glacial     = { Id = "", Fallback = "mutation_frozen" },
+	mutation_gravitized  = { Id = "", Fallback = "mutation_nebula" },
+	mutation_plasma      = { Id = "", Fallback = "mutation_solarflare" },
+	mutation_radioactive = { Id = "", Fallback = "mutation_nebula" },
+	mutation_starborn    = { Id = "", Fallback = "mutation_supernova" },
+	mutation_celestial   = { Id = "", Fallback = "mutation_supernova" },
+	mutation_abducted    = { Id = "", Fallback = "mutation_nebula" },
+	mutation_blackhole   = { Id = "", Fallback = "mutation_supernova" },
+	mutation_starfallen  = { Id = "", Fallback = "mutation_meteor" },
+	mutation_coronal     = { Id = "", Fallback = "mutation_solarflare" },
+	mutation_wormhole    = { Id = "", Fallback = "mutation_supernova" },
+	mutation_xenoform    = { Id = "", Fallback = "mutation_nebula" },
+	mutation_galaxy      = { Id = "", Fallback = "mutation_supernova" },
+	mutation_ton618      = { Id = "", Fallback = "mutation_supernova" },
+
+	-- weather + live events (WeatherHUD / LiveEventClient)
+	weather_start   = { Id = "rbxassetid://1840073793", Volume = 0.6, Cooldown = 2, MaxAtOnce = 1 },
+	event_alarm     = { Id = "rbxassetid://9119661709", Volume = 0.45, Cooldown = 3, MaxAtOnce = 1 },
+	event_tick      = { Id = "rbxassetid://123087446204451", Volume = 0.8, Cooldown = 0.2, MaxAtOnce = 2 },
+	event_boom      = { Id = "rbxassetid://1841340980", Volume = 1.0, Cooldown = 0.5, MaxAtOnce = 2 },
+	event_reward    = { Id = "", Fallback = "sell_big" },
+	thunder         = { Id = "rbxassetid://72113341430811", Volume = 0.7, Pitch = { 0.85, 1.1 }, Cooldown = 0.3, MaxAtOnce = 3 },
+	discover_common = { Id = "", Fallback = "reveal_uncommon" },
+	discover_rare   = { Id = "", Fallback = "reveal_rare" },
+	discover_epic   = { Id = "", Fallback = "reveal_epic" },
+	discover_legendary = { Id = "", Fallback = "reveal_legendary" },
+	discover_mythic = { Id = "", Fallback = "reveal_mythic" },
 }
 
 return AudioConfig
