@@ -126,9 +126,9 @@ local gui = new("ScreenGui", { Name = "WeatherHUD", ResetOnSpawn = false, Displa
 ---------------------------------------------------------------------
 local panel = new("Frame", {
 	Name = "WeatherPanel", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0),
-	Position = IS_PHONE and UDim2.fromOffset(66, 6) or UDim2.fromOffset(72, 10), Size = UDim2.fromOffset(250, 220), Parent = gui,
+	Position = IS_PHONE and UDim2.fromOffset(48, 6) or UDim2.fromOffset(72, 10), Size = UDim2.fromOffset(250, 220), Parent = gui,
 }, { new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
-ScreenFit.ScaleOnPhone(panel, 0.72)
+ScreenFit.ScaleOnPhone(panel, 0.52)
 
 local function card(name, order)
 	local frame = new("Frame", {
@@ -150,8 +150,8 @@ local function card(name, order)
 	iconStroke.Parent = icon
 	local emoji = label({ Size = UDim2.fromScale(1, 1), Text = "🌌", TextScaled = true, TextXAlignment = Enum.TextXAlignment.Center, Parent = icon },
 		{ new("UIPadding", { PaddingTop = UDim.new(0, 7), PaddingBottom = UDim.new(0, 7), PaddingLeft = UDim.new(0, 7), PaddingRight = UDim.new(0, 7) }) })
-	local header = label({ Name = "Header", Position = UDim2.fromOffset(64, 7), Size = UDim2.new(1, -72, 0, 12), TextSize = 10, Text = "WEATHER", Parent = frame })
-	local title = label({ Name = "Title", Position = UDim2.fromOffset(64, 19), Size = UDim2.new(1, -72, 0, 22), Font = TITLE_FONT, TextSize = 20,
+	local header = label({ Name = "Header", Position = UDim2.fromOffset(64, 7), Size = UDim2.new(1, -96, 0, 12), TextSize = 10, Text = "WEATHER", Parent = frame })
+	local title = label({ Name = "Title", Position = UDim2.fromOffset(64, 19), Size = UDim2.new(1, -96, 0, 22), Font = TITLE_FONT, TextSize = 20,
 		Text = "Clear Skies", TextTruncate = Enum.TextTruncate.AtEnd, Parent = frame }, { textStroke(1.6) })
 	local sub = label({ Name = "Sub", Position = UDim2.fromOffset(64, 41), Size = UDim2.new(1, -72, 0, 14), TextSize = 12, RichText = true,
 		TextColor3 = rgb(210, 220, 245), Text = "", TextTruncate = Enum.TextTruncate.AtEnd, Parent = frame })
@@ -171,6 +171,38 @@ end
 local weatherCard = card("WeatherCard", 1)
 local eventCard = card("EventCard", 2)
 eventCard.Frame.Visible = false
+
+-- hide / show: the "-" button folds the cards into one small round weather icon; tap it to open them again
+local mini = new("TextButton", {
+	Name = "WeatherMini", Size = UDim2.fromOffset(46, 46), Position = panel.Position, BackgroundColor3 = DARK,
+	BackgroundTransparency = 0.1, Text = "", AutoButtonColor = true, Visible = false, Parent = gui,
+}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+local miniStroke = stroke(Color3.new(1, 1, 1), 2)
+miniStroke.Parent = mini
+local miniGradient = gradient(rgb(120, 200, 255), rgb(90, 120, 255), 0)
+miniGradient.Parent = miniStroke
+local miniEmoji = label({ Size = UDim2.fromScale(1, 1), Text = "🌌", TextScaled = true, TextXAlignment = Enum.TextXAlignment.Center, Parent = mini },
+	{ new("UIPadding", { PaddingTop = UDim.new(0, 9), PaddingBottom = UDim.new(0, 9), PaddingLeft = UDim.new(0, 9), PaddingRight = UDim.new(0, 9) }) })
+local miniDot = new("Frame", { Size = UDim2.fromOffset(13, 13), Position = UDim2.new(1, -12, 0, -1), BackgroundColor3 = rgb(255, 80, 80),
+	Visible = false, Parent = mini }, { new("UICorner", { CornerRadius = UDim.new(1, 0) }), stroke(DARK, 1.5) })
+ScreenFit.ScaleOnPhone(mini, 0.72)
+
+local hideButton = new("TextButton", {
+	Name = "Hide", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -5, 0, 5), Size = UDim2.fromOffset(30, 30), BackgroundColor3 = DARK,
+	BackgroundTransparency = 0.1, Font = TITLE_FONT, Text = "-", TextSize = 22, TextColor3 = Color3.new(1, 1, 1),
+	AutoButtonColor = true, Parent = weatherCard.Frame,
+}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }), stroke(Color3.new(1, 1, 1), 1.5, 0.5) })
+
+local function setCollapsed(collapsed)
+	panel.Visible = not collapsed
+	mini.Visible = collapsed
+end
+hideButton.Activated:Connect(function()
+	setCollapsed(true)
+end)
+mini.Activated:Connect(function()
+	setCollapsed(false)
+end)
 
 local function colorCard(c, color, color2)
 	c.Border.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, color), ColorSequenceKeypoint.new(0.5, color2), ColorSequenceKeypoint.new(1, color) })
@@ -215,6 +247,8 @@ local function refreshWeather()
 		shownWeather = id
 		colorCard(weatherCard, w.Color, w.Color2)
 		weatherCard.Emoji.Text = w.Icon or "🌌"
+		miniEmoji.Text = w.Icon or "🌌"
+		miniGradient.Color = ColorSequence.new(w.Color, w.Color2)
 		weatherCard.Title.Text = w.Name
 		setChips(weatherCard, id ~= "clear" and mutationChips(w.Mutations) or {})
 	end
@@ -272,10 +306,12 @@ local function refreshEvent()
 	local event = EventConfig.Get(id)
 	if not event or phase == "" then
 		eventCard.Frame.Visible = false
+		miniDot.Visible = false
 		shownEvent = nil
 		return
 	end
 	eventCard.Frame.Visible = true
+	miniDot.Visible = true -- a live event is on (shows on the folded-up icon too)
 	local key = id .. phase
 	if shownEvent ~= key then
 		shownEvent = key

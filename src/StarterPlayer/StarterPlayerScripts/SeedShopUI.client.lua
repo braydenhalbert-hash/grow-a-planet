@@ -653,7 +653,7 @@ make("UIListLayout", {
 	HorizontalAlignment = Enum.HorizontalAlignment.Center,
 	VerticalAlignment = Enum.VerticalAlignment.Center,
 	SortOrder = Enum.SortOrder.LayoutOrder, -- SEEDS, GARDEN, SELL in that order
-	Padding = UDim.new(0, 12),
+	Padding = UDim.new(0, 22),
 }, tabs)
 
 -- chunky studded buttons like Grow a Garden: square corners, thick colored border, big outlined text
@@ -662,7 +662,7 @@ local function makeTab(text, color, strokeColor, order, onClick, width, height, 
 		Name = text,
 		Text = "",
 		LayoutOrder = order,
-		Size = UDim2.fromOffset(width or 140, height or 46),
+		Size = UDim2.fromOffset(width or 130, height or 38),
 		BackgroundColor3 = color,
 	}, tabs)
 	corner(tab, 4)
@@ -670,7 +670,7 @@ local function makeTab(text, color, strokeColor, order, onClick, width, height, 
 	addBricks(tab, 1, 0.2, 4, 36)
 	local words = label({
 		Text = text,
-		TextSize = textSize or 28,
+		TextSize = textSize or 24,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextTruncate = Enum.TextTruncate.None,
 		Size = UDim2.fromScale(1, 1),
@@ -715,7 +715,7 @@ makeTab("GARDEN", Color3.fromRGB(110, 72, 40), Color3.fromRGB(100, 200, 70), 2, 
 	else
 		showToast("Couldn't find your garden.", "error")
 	end
-end, 200, 56, 34)
+end, 180, 44, 28)
 
 makeTab("SELL", Color3.fromRGB(215, 38, 44), Color3.fromRGB(255, 120, 120), 3, function()
 	goToNpc(BUYER_NAMES, "Couldn't find the Planet Buyer.")
@@ -910,12 +910,35 @@ make("UIListLayout", {
 
 -- SEEDS / GARDEN / SELL sit up in Roblox's own top bar row (next to the Roblox menu buttons,
 -- never on top of them), so the game view underneath stays clear.
--- PHONES: smaller pop-ups, and the coins move to the top-left (the joystick lives bottom-left)
+-- PHONES: smaller pop-ups; the coins stay bottom-left like on computers
 ScreenFit.ScaleOnPhone(toastHolder, 0.75)
 ScreenFit.ScaleOnPhone(restockHolder, 0.7)
 ScreenFit.ScaleOnPhone(hudBody, 0.55)
 local tabsScale = make("UIScale", { Name = "TopBarScale" }, tabs)
-local TABS_W, TABS_H = 560, 64
+local TABS_W, TABS_H = 130 + 180 + 130 + 22 * 2, 48
+local PHONE_TABS_SCALE = 0.62
+
+-- the right edge of everything sitting on the LEFT of the top bar: Roblox's buttons and
+-- icons other scripts put there (like HD Admin's)
+local function topBarLeftEdge(width)
+	local edge = 0
+	local free = GuiService.TopbarInset
+	if free.Width > 0 then
+		edge = free.Min.X
+	end
+	for _, name in ipairs({ "TopbarStandard", "TopbarStandardClipped" }) do
+		local other = playerGui:FindFirstChild(name)
+		if other and other:IsA("ScreenGui") and other.Enabled then
+			for _, d in ipairs(other:GetDescendants()) do
+				if d:IsA("GuiButton") and d.Visible and d.AbsoluteSize.X > 0 and d.AbsolutePosition.X < width / 2 then
+					edge = math.max(edge, d.AbsolutePosition.X + d.AbsoluteSize.X)
+				end
+			end
+		end
+	end
+	return edge
+end
+
 local function placeTabs()
 	local camera = workspace.CurrentCamera
 	if not camera then
@@ -923,61 +946,48 @@ local function placeTabs()
 	end
 	local width = camera.ViewportSize.X
 	local inset = GuiService:GetGuiInset().Y
-	local free = GuiService.TopbarInset -- the part of the top bar Roblox's buttons don't use
-	local left = free.Width > 0 and free.Min.X or 0
-	local right = free.Width > 0 and free.Max.X or width
-	if inset < 30 then
-		-- no top bar row (rare): just below the top of the screen
-		tabsScale.Scale = ScreenFit.IsPhone() and 0.5 or 0.8
+	-- phones (or no top bar row): centered at the top, just under Roblox's top bar
+	if ScreenFit.IsPhone() or inset < 30 then
+		tabsScale.Scale = math.min(PHONE_TABS_SCALE, (width - 40) / TABS_W)
 		tabs.AnchorPoint = Vector2.new(0.5, 0)
-		tabs.Position = UDim2.new(0.5, 0, 0, 6)
+		tabs.Position = UDim2.new(0.5, 0, 0, 4)
 		return
 	end
-	-- as tall as the top bar row allows, and narrow enough to fit beside the Roblox buttons
-	local scale = math.min((inset - 6) / TABS_H, (right - left - 16) / TABS_W, 0.9)
+	-- computers: in the middle of the top bar row, as big as fits without touching the buttons beside it
+	local free = GuiService.TopbarInset
+	local right = free.Width > 0 and free.Max.X or width
+	local left = topBarLeftEdge(width)
+	local room = math.min(width / 2 - left, right - width / 2) - 10
+	local scale = math.min((inset - 8) / TABS_H, room * 2 / TABS_W, 0.95)
+	if scale < 0.55 then
+		-- not enough room in the row: centered just under it instead
+		tabsScale.Scale = math.min(0.75, (width - 40) / TABS_W)
+		tabs.AnchorPoint = Vector2.new(0.5, 0)
+		tabs.Position = UDim2.new(0.5, 0, 0, 4)
+		return
+	end
 	tabsScale.Scale = scale
-	local half = TABS_W * scale / 2
-	local center = math.clamp(width / 2, left + 8 + half, right - 8 - half)
 	tabs.AnchorPoint = Vector2.new(0.5, 0.5)
-	tabs.Position = UDim2.new(0, center, 0, -inset / 2)
+	tabs.Position = UDim2.new(0.5, 0, 0, -inset / 2)
 end
-GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(placeTabs)
-
--- on phones the coins sit at the bottom, just above the hotbar and lined up with its left edge
--- (the bottom-left corner itself belongs to the movement joystick)
-local function hotbarFrame()
-	local hotbarGui = playerGui:FindFirstChild("GardenHotbar")
-	return hotbarGui and hotbarGui:FindFirstChild("Bar")
-end
-local function placeHudOnPhone()
-	if not ScreenFit.IsPhone() then
-		return
-	end
-	local bar = hotbarFrame()
-	local size = ScreenFit.Size()
-	local left = bar and bar.AbsolutePosition.X or size.X * 0.21
-	local height = bar and bar.AbsoluteSize.Y or 70
-	hud.AnchorPoint = Vector2.new(0, 1)
-	hud.Position = UDim2.new(0, math.max(left, 8), 1, -(height + 12))
-end
+-- other top bar icons (HD Admin...) can show up a bit later
 task.spawn(function()
-	local hotbarGui = playerGui:WaitForChild("GardenHotbar", 30)
-	local bar = hotbarGui and hotbarGui:WaitForChild("Bar", 10)
-	if bar then
-		bar:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeHudOnPhone)
-		bar:GetPropertyChangedSignal("AbsolutePosition"):Connect(placeHudOnPhone)
-		placeHudOnPhone()
+	for _ = 1, 6 do
+		task.wait(2)
+		placeTabs()
 	end
 end)
+GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(placeTabs)
 
 ScreenFit.Watch(function()
 	placeTabs()
 	if ScreenFit.IsPhone() then
-		-- at the bottom on phones too (out of the way of the top of the screen)
-		placeHudOnPhone()
+		-- bottom left on phones too (out of the way of the top of the screen)
+		hud.AnchorPoint = Vector2.new(0, 1)
+		hud.Position = UDim2.new(0, 10, 1, -6)
 		hudBody.AnchorPoint = Vector2.new(0, 1)
 		hudBody.Position = UDim2.fromScale(0, 1)
-		toastHolder.Position = UDim2.new(0.5, 0, 0, 8)
+		toastHolder.Position = UDim2.new(0.5, 0, 0, 40) -- under the SEEDS / GARDEN / SELL buttons
 		restockHolder.Position = UDim2.new(1, -8, 0, 68)
 	else
 		hud.AnchorPoint = Vector2.new(0, 1)

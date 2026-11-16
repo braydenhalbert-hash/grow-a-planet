@@ -72,6 +72,7 @@ end
 local gui = make("ScreenGui", {
 	Name = "LoadingScreen",
 	IgnoreGuiInset = true,
+	ScreenInsets = Enum.ScreenInsets.None, -- cover the WHOLE screen on phones too (past the notch area)
 	ResetOnSpawn = false,
 	DisplayOrder = 100000,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,

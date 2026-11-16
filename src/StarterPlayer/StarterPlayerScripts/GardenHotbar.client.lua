@@ -1157,9 +1157,9 @@ ScreenFit.Watch(function()
 
 	-- settings: top-left (smaller on phones; the coins are at the bottom left on every screen)
 	if phone then
-		settingsButton.Size = UDim2.fromOffset(44, 44)
+		settingsButton.Size = UDim2.fromOffset(34, 34)
 		settingsButton.Position = UDim2.fromOffset(8, 6)
-		settingsPanel.Position = UDim2.fromOffset(60, 6)
+		settingsPanel.Position = UDim2.fromOffset(48, 6)
 	else
 		settingsButton.Size = UDim2.fromOffset(52, 52)
 		settingsButton.Position = UDim2.fromOffset(12, 10)
