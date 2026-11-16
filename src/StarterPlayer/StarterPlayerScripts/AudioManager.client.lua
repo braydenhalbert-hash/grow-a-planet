@@ -37,6 +37,17 @@ local RARITY_ORDER = { Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary =
 -- Area music
 ---------------------------------------------------------------------
 local eventMusic = false       -- true while a pack is opening (the zone music waits)
+local liveOps = ReplicatedStorage:WaitForChild("LiveOps", 10)
+
+-- during a live event (countdown + the event itself) only the event's own music plays,
+-- except at the shops, which keep their music (LiveEventClient mutes the event music there)
+local function liveEventOn()
+	if not liveOps then
+		return false
+	end
+	local phase = liveOps:GetAttribute("LiveEventPhase") or ""
+	return (liveOps:GetAttribute("LiveEvent") or "") ~= "" and (phase == "countdown" or phase == "active")
+end
 local zoneModels = {}          -- { Model, Track }
 local currentZoneTrack = nil
 
@@ -79,7 +90,8 @@ task.spawn(function()
 					end
 				end
 			end
-			local wanted = best and best.Track or Config.DefaultTrack
+			player:SetAttribute("InMusicZone", best ~= nil) -- (LiveEventClient + WeatherClient listen to this)
+			local wanted = best and best.Track or (not liveEventOn() and Config.DefaultTrack or nil)
 			if wanted ~= currentZoneTrack or Audio.CurrentMusic() ~= wanted then
 				currentZoneTrack = wanted
 				Audio.SetMusic(wanted)

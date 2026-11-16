@@ -65,6 +65,15 @@ end
 -- Ambient sound for the event
 ---------------------------------------------------------------------
 local eventSound = nil
+-- the event music is muted while you're at a shop (the shop keeps its own music)
+local function eventVolume()
+	return player:GetAttribute("InMusicZone") and 0 or 1
+end
+player:GetAttributeChangedSignal("InMusicZone"):Connect(function()
+	if eventSound then
+		tween(eventSound.Group, 1.2, { Volume = eventVolume() })
+	end
+end)
 local function setEventSound(id, volume)
 	if eventSound then
 		local old = eventSound
@@ -88,7 +97,7 @@ local function setEventSound(id, volume)
 	sound.SoundGroup = group
 	sound.Parent = SoundService
 	sound:Play()
-	tween(group, 2.5, { Volume = 1 })
+	tween(group, 2.5, { Volume = eventVolume() })
 	eventSound = { Sound = sound, Group = group }
 end
 

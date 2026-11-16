@@ -470,6 +470,16 @@ end
 -- Ambient sound
 ---------------------------------------------------------------------
 local ambient = nil -- { Sound, Group }
+-- during a live event only the event's music plays, so the weather's sound goes quiet
+local function ambientVolume()
+	local phase = state:GetAttribute("LiveEventPhase") or ""
+	return (phase == "countdown" or phase == "active") and 0 or 1
+end
+state:GetAttributeChangedSignal("LiveEventPhase"):Connect(function()
+	if ambient then
+		tween(ambient.Group, 2, { Volume = ambientVolume() })
+	end
+end)
 local function setAmbient(id, volume)
 	if ambient then
 		local old = ambient
@@ -494,7 +504,7 @@ local function setAmbient(id, volume)
 	sound.SoundGroup = group
 	sound.Parent = SoundService
 	sound:Play()
-	tween(group, 3, { Volume = 1 })
+	tween(group, 3, { Volume = ambientVolume() })
 	ambient = { Sound = sound, Group = group }
 end
 
