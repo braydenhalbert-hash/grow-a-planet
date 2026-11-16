@@ -90,9 +90,9 @@ local CLICK_SOUND_ID = "rbxassetid://123087446204451"
 local CLICK_VOLUME = 0.6
 local SOLD_OUT_SOUND_ID = "rbxassetid://108295046133967"
 local SOLD_OUT_VOLUME = 0.7
--- sound for "shop restocked" pop-ups. This is a built-in Roblox ping so it always works; paste your own
--- "rbxassetid://..." here to use a different sound.
-local RESTOCK_SOUND_ID = "rbxasset://sounds/electronicpingshort.wav"
+-- sound when the shops restock: a springy rubber-band twang (Roblox's own "Rubber band" sound,
+-- Grow a Garden style). Paste your own "rbxassetid://..." here to use a different sound.
+local RESTOCK_SOUND_ID = "rbxassetid://12222106"
 local RESTOCK_VOLUME = 0.8
 
 -- STUD LOOK inside the shop windows (round studs)
