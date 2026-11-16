@@ -86,13 +86,17 @@ local stock = {}
 local RESTOCK_CHANCE_BY_RARITY = { Epic = 0.25 }        -- the best planet seeds in the shop (Uranus, Neptune)
 local RESTOCK_CHANCE_BY_PACK = { pack_voidheart = 0.05 } -- the best seed pack
 
-local function restock()
+-- bonus: extra stock added on top of every item's roll (the Robux restock gives +1 to the whole shop,
+-- so even items that rolled SOLD OUT come back with 1)
+local function restock(bonus)
+	bonus = bonus or 0
 	local newPlanets, newPacks = {}, {}
 	for _, gear in ipairs(GearCatalog.Gear) do
 		local count = 0
 		if math.random() < (gear.RestockChance or 1) then
 			count = GearCatalog.RollStock(gear)
 		end
+		count += bonus
 		stock[gear.Id] = count
 		stockFolder:SetAttribute(gear.Id, count)
 	end
@@ -102,6 +106,7 @@ local function restock()
 			if math.random() < (planet.RestockChance or RESTOCK_CHANCE_BY_RARITY[planet.Rarity] or 1) then
 				count = PlanetCatalog.RollStock(planet)
 			end
+			count += bonus
 			stock[planet.Id] = count
 			stockFolder:SetAttribute(planet.Id, count)
 			if count > 0 then
@@ -114,6 +119,7 @@ local function restock()
 		if math.random() < (pack.RestockChance or RESTOCK_CHANCE_BY_PACK[pack.Id] or 1) then
 			count = PackCatalog.RollStock(pack)
 		end
+		count += bonus
 		stock[pack.Id] = count
 		stockFolder:SetAttribute(pack.Id, count)
 		if count > 0 then
@@ -620,11 +626,11 @@ MarketplaceService.ProcessReceipt = function(receipt)
 
 	-- the Robux RESTOCK button
 	if receipt.ProductId == RESTOCK_PRODUCT_ID then
-		restock()
+		restock(1) -- whole shop rerolls, +1 of everything on top
 		handledReceipts[receipt.PurchaseId] = true
 		local buyer = Players:GetPlayerByUserId(receipt.PlayerId)
 		if buyer then
-			notice(buyer, "Shop restocked!", "ok")
+			notice(buyer, "Shop restocked! +1 of everything!", "ok")
 		end
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
