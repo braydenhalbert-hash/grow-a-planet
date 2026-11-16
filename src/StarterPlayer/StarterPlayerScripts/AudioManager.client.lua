@@ -48,6 +48,15 @@ local function liveEventOn()
 	local phase = liveOps:GetAttribute("LiveEventPhase") or ""
 	return (liveOps:GetAttribute("LiveEvent") or "") ~= "" and (phase == "countdown" or phase == "active")
 end
+
+-- the garden song stops whenever something special is going on: a live event, an admin mutation event
+-- or any weather. Their own music plays instead (LiveEventClient / WeatherClient). Shops keep their music.
+local function specialMusicOn()
+	if not liveOps then
+		return false
+	end
+	return liveEventOn() or (liveOps:GetAttribute("Event") or "") ~= "" or (liveOps:GetAttribute("Weather") or "clear") ~= "clear"
+end
 local zoneModels = {}          -- { Model, Track }
 local currentZoneTrack = nil
 
@@ -91,7 +100,7 @@ task.spawn(function()
 				end
 			end
 			player:SetAttribute("InMusicZone", best ~= nil) -- (LiveEventClient + WeatherClient listen to this)
-			local wanted = best and best.Track or (not liveEventOn() and Config.DefaultTrack or nil)
+			local wanted = best and best.Track or (not specialMusicOn() and Config.DefaultTrack or nil)
 			if wanted ~= currentZoneTrack or Audio.CurrentMusic() ~= wanted then
 				currentZoneTrack = wanted
 				Audio.SetMusic(wanted)

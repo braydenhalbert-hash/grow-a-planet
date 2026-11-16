@@ -470,16 +470,26 @@ end
 -- Ambient sound
 ---------------------------------------------------------------------
 local ambient = nil -- { Sound, Group }
--- during a live event only the event's music plays, so the weather's sound goes quiet
+-- the weather's sound is the music while it lasts, except: during a live event or an admin mutation
+-- event (their music plays instead) and at a shop (the shop's music plays)
 local function ambientVolume()
 	local phase = state:GetAttribute("LiveEventPhase") or ""
-	return (phase == "countdown" or phase == "active") and 0 or 1
-end
-state:GetAttributeChangedSignal("LiveEventPhase"):Connect(function()
-	if ambient then
-		tween(ambient.Group, 2, { Volume = ambientVolume() })
+	if phase == "countdown" or phase == "active" then
+		return 0
 	end
-end)
+	if (state:GetAttribute("Event") or "") ~= "" or player:GetAttribute("InMusicZone") then
+		return 0
+	end
+	return 1
+end
+local function refreshAmbientVolume()
+	if ambient then
+		tween(ambient.Group, 1.5, { Volume = ambientVolume() })
+	end
+end
+state:GetAttributeChangedSignal("LiveEventPhase"):Connect(refreshAmbientVolume)
+state:GetAttributeChangedSignal("Event"):Connect(refreshAmbientVolume)
+player:GetAttributeChangedSignal("InMusicZone"):Connect(refreshAmbientVolume)
 local function setAmbient(id, volume)
 	if ambient then
 		local old = ambient

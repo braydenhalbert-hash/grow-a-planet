@@ -579,6 +579,53 @@ local function sync()
 end
 state:GetAttributeChangedSignal("LiveEvent"):Connect(sync)
 state:GetAttributeChangedSignal("LiveEventPhase"):Connect(sync)
+
+---------------------------------------------------------------------
+-- Admin mutation events (admin panel: "Meteor Shower Event x5") get their own music too,
+-- unless a live event is on (its music wins). Muted at the shops like the event music.
+---------------------------------------------------------------------
+local BOOST_MUSIC = "rbxassetid://132902548674552" -- Nebula Veil Space Ambience
+local BOOST_VOLUME = 0.5
+local boostMusic = nil
+local function syncBoostMusic()
+	local on = (state:GetAttribute("Event") or "") ~= "" and current == nil
+	if on and not boostMusic then
+		local group = Instance.new("SoundGroup")
+		group.Name = "MutationEventMusic"
+		group.Volume = 0
+		group.Parent = SoundService:FindFirstChild("GameSfx") or SoundService
+		local sound = Instance.new("Sound")
+		sound.Name = "MutationEventMusic"
+		sound.SoundId = BOOST_MUSIC
+		sound.Volume = BOOST_VOLUME
+		sound.Looped = true
+		sound.SoundGroup = group
+		sound.Parent = SoundService
+		sound:Play()
+		boostMusic = { Sound = sound, Group = group }
+		tween(group, 2.5, { Volume = eventVolume() })
+	elseif not on and boostMusic then
+		local old = boostMusic
+		boostMusic = nil
+		tween(old.Group, 2, { Volume = 0 }).Completed:Connect(function()
+			old.Sound:Destroy()
+			old.Group:Destroy()
+		end)
+	end
+end
+state:GetAttributeChangedSignal("Event"):Connect(syncBoostMusic)
+state:GetAttributeChangedSignal("LiveEvent"):Connect(function()
+	task.defer(syncBoostMusic)
+end)
+state:GetAttributeChangedSignal("LiveEventPhase"):Connect(function()
+	task.defer(syncBoostMusic)
+end)
+player:GetAttributeChangedSignal("InMusicZone"):Connect(function()
+	if boostMusic then
+		tween(boostMusic.Group, 1.2, { Volume = eventVolume() })
+	end
+end)
+task.defer(syncBoostMusic)
 task.defer(sync)
 
 RunService.RenderStepped:Connect(function(dt)
