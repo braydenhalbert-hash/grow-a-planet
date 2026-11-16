@@ -42,7 +42,7 @@ local CLOSE_DISTANCE = 18                  -- the talk ends if you walk this far
 local FONT = Enum.Font.FredokaOne
 local GREETING = "Got anything to sell?"
 local GOODBYE = "Come back anytime!"
-local TYPE_SPEED = 0.025 -- seconds per letter for the choices
+local TYPE_SPEED = 0.012 -- seconds per letter for the choices (smaller = faster)
 
 -- where the choices float: to the right of the buyer (in studs) and a bit below his head
 local CHOICES_OFFSET = Vector3.new(4.5, -0.8, 0)

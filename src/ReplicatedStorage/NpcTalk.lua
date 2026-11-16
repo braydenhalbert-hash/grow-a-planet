@@ -29,7 +29,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local NpcTalk = {}
 
 local FONT = Enum.Font.FredokaOne
-local TYPE_SPEED = 0.03 -- seconds per letter
+local TYPE_SPEED = 0.014 -- seconds per letter (smaller = faster)
 
 -- text size for talking (smaller on phones)
 function NpcTalk.TextSize()

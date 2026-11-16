@@ -9,7 +9,7 @@
 	  * A glowing path, a bouncing arrow, an outline and a sparkle ring show where to go;
 	    an arrow on the edge of the screen points there when it's behind you.
 	  * The objective card (top-right) shows the current goal and has a SKIP button.
-	  * The ? button (top-right) gives a hint, or replays the tutorial.
+	  * Settings > Replay Tutorial gives a hint during a lesson, or replays the tutorial.
 	  * Progress is saved (TutorialServer). Players who already played skip the basics automatically.
 
 	It only LISTENS to the game (remotes the game already sends, your hotbar, the planted planets),
@@ -1452,7 +1452,7 @@ noButton.MouseButton1Click:Connect(function()
 	confirm.Visible = false
 end)
 
-helpButton.MouseButton1Click:Connect(function()
+local function openHelp()
 	if stepActive and activeGuide then
 		-- repeat the hint right now
 		local g = activeGuide
@@ -1471,7 +1471,15 @@ helpButton.MouseButton1Click:Connect(function()
 	else
 		confirm.Visible = not confirm.Visible
 	end
-end)
+end
+helpButton.MouseButton1Click:Connect(openHelp)
+
+-- the Replay Tutorial button lives in Settings now (GardenHotbar fires this); the ? button is hidden
+local openHelpEvent = Instance.new("BindableEvent")
+openHelpEvent.Name = "OpenHelp"
+openHelpEvent.Parent = gui
+openHelpEvent.Event:Connect(openHelp)
+helpButton.Visible = false
 
 ---------------------------------------------------------------------
 -- Start

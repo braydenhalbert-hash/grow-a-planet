@@ -9,7 +9,8 @@
 	  * The BACKPACK button at the end of the hotbar (or the ` key) opens the backpack:
 	    every item you own, sorted by type and rarity, with search and filter tabs
 	    (All / Seeds / Planets / Gear / Packs). Tap an item to hold it.
-	  * The gear button opens Settings (music on/off). Top-left on computers, left side on phones.
+	  * The gear button opens Settings: music on/off, a music volume slider, and Replay Tutorial.
+	    Top-left on computers, left side on phones.
 
 	Needs ReplicatedStorage > ItemIcons and ScreenFit (ModuleScripts).
 ]]
@@ -859,7 +860,7 @@ task.spawn(function()
 end)
 
 ---------------------------------------------------------------------
--- Settings (music on / off)
+-- Settings (music on / off, music volume, replay tutorial)
 ---------------------------------------------------------------------
 local settingsButton = make("TextButton", {
 	Name = "SettingsButton",
@@ -879,7 +880,7 @@ pressEffect(settingsButton)
 
 local settingsPanel = make("Frame", {
 	Name = "SettingsPanel",
-	Size = UDim2.fromOffset(240, 112),
+	Size = UDim2.fromOffset(260, 236),
 	BackgroundColor3 = Color3.new(1, 1, 1),
 	Visible = false,
 }, gui)
@@ -893,9 +894,11 @@ text(settingsPanel, {
 	TextXAlignment = Enum.TextXAlignment.Left,
 	Text = "Settings",
 })
+
+-- MUSIC ON / OFF
 local musicButton = make("TextButton", {
-	Position = UDim2.fromOffset(14, 50),
-	Size = UDim2.new(1, -28, 0, 46),
+	Position = UDim2.fromOffset(14, 44),
+	Size = UDim2.new(1, -28, 0, 42),
 	BackgroundColor3 = Color3.fromRGB(60, 170, 80),
 	Font = FONT,
 	TextSize = 20,
@@ -904,13 +907,80 @@ local musicButton = make("TextButton", {
 }, settingsPanel)
 corner(musicButton, 10)
 
+-- MUSIC VOLUME slider
+local volumeLabel = text(settingsPanel, {
+	Position = UDim2.fromOffset(14, 94),
+	Size = UDim2.new(1, -28, 0, 22),
+	TextSize = 17,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Text = "Music Volume: 100%",
+})
+local track = make("TextButton", {
+	Name = "VolumeSlider",
+	Position = UDim2.fromOffset(24, 124),
+	Size = UDim2.new(1, -48, 0, 14),
+	BackgroundColor3 = Color3.fromRGB(20, 18, 50),
+	AutoButtonColor = false,
+	Text = "",
+}, settingsPanel)
+corner(track, "round")
+stroke(track, Color3.fromRGB(150, 130, 255), 1.5, 0.3)
+local fill = make("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BorderSizePixel = 0,
+}, track)
+corner(fill, "round")
+gradient(fill, COLORS.GlowA, COLORS.GlowB).Rotation = 0
+local knob = make("Frame", {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(1, 0.5),
+	Size = UDim2.fromOffset(26, 26),
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	ZIndex = 3,
+}, track)
+corner(knob, "round")
+stroke(knob, Color3.fromRGB(120, 90, 255), 2.5)
+
+-- REPLAY TUTORIAL (asks Cosmo first; while a lesson is running it repeats the hint instead)
+local tutorialButton = make("TextButton", {
+	Position = UDim2.fromOffset(14, 154),
+	Size = UDim2.new(1, -28, 0, 42),
+	BackgroundColor3 = Color3.fromRGB(90, 70, 220),
+	Font = FONT,
+	TextSize = 20,
+	TextColor3 = COLORS.Text,
+	Text = "Replay Tutorial",
+}, settingsPanel)
+corner(tutorialButton, 10)
+gradient(tutorialButton, Color3.fromRGB(160, 140, 255), Color3.fromRGB(90, 60, 210))
+pressEffect(tutorialButton)
+text(settingsPanel, {
+	Position = UDim2.fromOffset(14, 202),
+	Size = UDim2.new(1, -28, 0, 22),
+	TextSize = 13,
+	TextColor3 = COLORS.Dim,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Text = "Cosmo, Zib and Sprocket show you around again",
+})
+tutorialButton.Activated:Connect(function()
+	local tutorialGui = playerGui:FindFirstChild("TutorialUI")
+	local help = tutorialGui and tutorialGui:FindFirstChild("OpenHelp")
+	if help then
+		help:Fire()
+		settingsPanel.Visible = false
+	end
+end)
+
+-- every looping sound is music: its volume = the volume it was made with x your slider (0 when muted)
 local musicMuted = false
+local musicVolume = 1
 local function applyMusic(sound)
 	if sound:IsA("Sound") and sound.Looped then
 		if sound:GetAttribute("OriginalVolume") == nil then
 			sound:SetAttribute("OriginalVolume", sound.Volume)
 		end
-		sound.Volume = musicMuted and 0 or sound:GetAttribute("OriginalVolume")
+		sound.Volume = musicMuted and 0 or sound:GetAttribute("OriginalVolume") * musicVolume
 	end
 end
 local function applyMusicToAll()
@@ -928,11 +998,40 @@ musicButton.Activated:Connect(function()
 end)
 for _, root in ipairs({ workspace, SoundService }) do
 	root.DescendantAdded:Connect(function(descendant)
-		if musicMuted then
+		if musicMuted or musicVolume ~= 1 then
 			task.defer(applyMusic, descendant)
 		end
 	end)
 end
+
+local function setVolume(v)
+	musicVolume = math.clamp(v, 0, 1)
+	fill.Size = UDim2.fromScale(musicVolume, 1)
+	knob.Position = UDim2.fromScale(musicVolume, 0.5)
+	volumeLabel.Text = string.format("Music Volume: %d%%", math.floor(musicVolume * 100 + 0.5))
+	applyMusicToAll()
+end
+local dragging = false
+local function volumeAt(x)
+	return (x - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1)
+end
+track.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		setVolume(volumeAt(input.Position.X))
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		setVolume(volumeAt(input.Position.X))
+	end
+end)
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
 settingsButton.Activated:Connect(function()
 	settingsPanel.Visible = not settingsPanel.Visible
 end)
