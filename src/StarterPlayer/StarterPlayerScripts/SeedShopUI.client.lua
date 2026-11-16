@@ -466,13 +466,22 @@ local topGui = make("ScreenGui", {
 --   971.7T¢                      <- your coins
 local HUD_FONT = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
 
+-- the coins get their own screen layer that reaches the real edges of the screen, so on phones with a
+-- notch / island they can sit further into the corner than Roblox's "safe area" allows
+local coinGui = make("ScreenGui", {
+	Name = "CoinsHUD",
+	ResetOnSpawn = false,
+	ScreenInsets = Enum.ScreenInsets.None,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, playerGui)
+
 local hud = make("Frame", {
 	Name = "Coins",
 	AnchorPoint = Vector2.new(0, 1),
 	Position = UDim2.new(0, 16, 1, -16), -- bottom left corner of the screen
 	Size = UDim2.fromOffset(420, 96),
 	BackgroundTransparency = 1,
-}, topGui)
+}, coinGui)
 
 -- everything sits in Body so phones can shrink it (hud's own UIScale is the coin "pulse")
 local hudBody = make("Frame", {
@@ -950,7 +959,7 @@ local function placeTabs()
 	if ScreenFit.IsPhone() or inset < 30 then
 		tabsScale.Scale = math.min(PHONE_TABS_SCALE, (width - 40) / TABS_W)
 		tabs.AnchorPoint = Vector2.new(0.5, 0)
-		tabs.Position = UDim2.new(0.5, 0, 0, 4)
+		tabs.Position = UDim2.new(0.5, 0, 0, ScreenFit.IsPhone() and -3 or 4)
 		return
 	end
 	-- computers: in the middle of the top bar row, as big as fits without touching the buttons beside it
@@ -979,12 +988,22 @@ task.spawn(function()
 end)
 GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(placeTabs)
 
+-- phones: the coins go right into the bottom-left corner, using the extra screen beside the
+-- safe area on phones with a notch / island (but not so far the rounded corner cuts them off)
+local function placeCoinsOnPhone()
+	if ScreenFit.IsPhone() then
+		hud.AnchorPoint = Vector2.new(0, 1)
+		-- (this layer starts at the real screen edge: skip ~40% of the notch-side room, the rounded corner)
+		hud.Position = UDim2.new(0, 8 + math.floor(ScreenFit.SideRoom() * 0.4), 1, -8)
+	end
+end
+
 ScreenFit.Watch(function()
 	placeTabs()
 	if ScreenFit.IsPhone() then
 		-- bottom left on phones too (out of the way of the top of the screen)
-		hud.AnchorPoint = Vector2.new(0, 1)
-		hud.Position = UDim2.new(0, 10, 1, -6)
+		placeCoinsOnPhone()
+		task.delay(1, placeCoinsOnPhone) -- (the screen edges are only known a moment later)
 		hudBody.AnchorPoint = Vector2.new(0, 1)
 		hudBody.Position = UDim2.fromScale(0, 1)
 		toastHolder.Position = UDim2.new(0.5, 0, 0, 40) -- under the SEEDS / GARDEN / SELL buttons

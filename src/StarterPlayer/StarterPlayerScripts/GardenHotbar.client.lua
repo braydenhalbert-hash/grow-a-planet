@@ -1145,7 +1145,7 @@ ScreenFit.Watch(function()
 	local width = (count + 1) * (SLOT_SIZE + SLOT_GAP)
 	if phone then
 		-- keep clear of the joystick (left) and jump button (right): use the middle ~58% of the screen
-		barScale.Scale = math.clamp(size.X * 0.58 / width, 0.55, 0.9)
+		barScale.Scale = math.clamp(size.X * 0.5 / width, 0.45, 0.8)
 		bar.Position = UDim2.new(0.5, 0, 1, -6)
 	else
 		barScale.Scale = math.clamp((size.X - 24) / width, 0.5, 1)

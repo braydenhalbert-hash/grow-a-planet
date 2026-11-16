@@ -9,6 +9,9 @@
 	ScreenFit.Fit(design, margin)     a scale (max 1) that makes a box of `design` size fit the screen
 	ScreenFit.Watch(fn)               calls fn() now and again whenever the screen size changes
 	ScreenFit.ScaleOnPhone(gui, s)    gives gui a UIScale of s on phones (1 on bigger screens)
+	ScreenFit.SideRoom()              phones with a notch / island (iPhone Pro...) keep the game UI inside a
+	                                  "safe area"; this is how many pixels of real screen there are beside it
+	                                  on each side (0 on normal screens). Client only.
 ]]
 
 local GuiService = game:GetService("GuiService")
@@ -70,6 +73,33 @@ function ScreenFit.Watch(fn)
 	hook()
 	table.insert(watchers, fn)
 	task.spawn(fn)
+end
+
+local probe = nil
+function ScreenFit.SideRoom()
+	local player = game:GetService("Players").LocalPlayer
+	local playerGui = player and player:FindFirstChild("PlayerGui")
+	if not playerGui then
+		return 0
+	end
+	if not probe or not probe.Parent then
+		local gui = Instance.new("ScreenGui")
+		gui.Name = "ScreenFitProbe"
+		gui.ScreenInsets = Enum.ScreenInsets.None -- the whole screen, edge to edge
+		gui.ResetOnSpawn = false
+		local frame = Instance.new("Frame")
+		frame.Size = UDim2.fromScale(1, 1)
+		frame.BackgroundTransparency = 1
+		frame.Parent = gui
+		gui.Parent = playerGui
+		probe = frame
+	end
+	local cam = camera()
+	local view = cam and cam.ViewportSize or Vector2.zero
+	if probe.AbsoluteSize.X <= 0 then
+		return 0
+	end
+	return math.max(0, (probe.AbsoluteSize.X - view.X) / 2)
 end
 
 function ScreenFit.ScaleOnPhone(gui, phoneScale)
