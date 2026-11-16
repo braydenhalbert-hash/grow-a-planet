@@ -160,7 +160,7 @@ local function card(name, order)
 	local barFill = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), Parent = barBack }, { corner(2) })
 	local barGradient = gradient(rgb(120, 200, 255), rgb(90, 120, 255))
 	barGradient.Parent = barFill
-	local chips = new("Frame", { Name = "Chips", Position = UDim2.fromOffset(12, 62), Size = UDim2.new(1, -24, 0, 18), BackgroundTransparency = 1, Visible = false, Parent = frame },
+	local chips = new("Frame", { Name = "Chips", Position = UDim2.fromOffset(12, 64), Size = UDim2.new(1, -24, 0, 18), BackgroundTransparency = 1, Visible = false, Parent = frame },
 		{ new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	return {
 		Frame = frame, Border = borderGradient, Icon = iconGradient, Emoji = emoji, Header = header, Title = title, Sub = sub,
@@ -192,7 +192,7 @@ local function setChips(c, list)
 		}, { corner(9), stroke(item.Color, 1, 0.45), new("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }) })
 	end
 	c.Chips.Visible = #list > 0
-	c.Frame.Size = UDim2.fromOffset(250, #list > 0 and 86 or 64)
+	c.Frame.Size = UDim2.fromOffset(250, #list > 0 and 90 or 64)
 	c.Bar.Position = UDim2.new(0, 12, 0, 58)
 end
 
@@ -319,7 +319,7 @@ end)
 ---------------------------------------------------------------------
 -- 2) Big banners in the middle
 ---------------------------------------------------------------------
-local bannerHolder = new("Frame", { Name = "Banners", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 78),
+local bannerHolder = new("Frame", { Name = "Banners", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.19, 0),
 	Size = UDim2.fromOffset(560, 120), BackgroundTransparency = 1, Parent = gui })
 ScreenFit.ScaleOnPhone(bannerHolder, 0.62)
 
@@ -444,7 +444,7 @@ state:GetAttributeChangedSignal("LiveEventPhase"):Connect(onEventPhase)
 ---------------------------------------------------------------------
 local bigCount = label({ Name = "BigCountdown", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.36),
 	Size = UDim2.fromOffset(300, 160), Font = TITLE_FONT, TextSize = 130, Text = "", TextXAlignment = Enum.TextXAlignment.Center,
-	TextTransparency = 1, Parent = gui }, { textStroke(5) })
+	TextTransparency = 1, Visible = false, Parent = gui }, { textStroke(5) })
 local bigScale = new("UIScale", { Parent = bigCount })
 local bigGradient = gradient(rgb(255, 240, 150), rgb(255, 90, 60), 90)
 bigGradient.Parent = bigCount
@@ -459,6 +459,7 @@ local function refreshBigCountdown()
 		if n ~= lastShownNumber then
 			lastShownNumber = n
 			bigCount.Text = tostring(n)
+			bigCount.Visible = true
 			bigCount.TextTransparency = 0
 			bigScale.Scale = 1.6
 			tween(bigScale, 0.5, { Scale = 1 }, Enum.EasingStyle.Back)
@@ -467,17 +468,23 @@ local function refreshBigCountdown()
 		bigCount.TextTransparency = math.clamp((n - left - 0.6) * 2.5, 0, 1) -- each number fades near the end of its second
 	elseif lastShownNumber then
 		lastShownNumber = nil
-		tween(bigCount, 0.3, { TextTransparency = 1 })
-		local evt = EventConfig.Get(state:GetAttribute("LiveEvent") or "")
-		if phase == "active" and evt then
-			bigCount.Text = "GO!"
-			bigCount.TextTransparency = 0
-			bigScale.Scale = 2
-			tween(bigScale, 0.6, { Scale = 1 }, Enum.EasingStyle.Back)
-			task.delay(1, function()
-				tween(bigCount, 0.4, { TextTransparency = 1 })
-			end)
+		-- (the text outline doesn't fade with the text, so the label is hidden once it's faded)
+		if phase == "" then
+			bigCount.Visible = false
+			return
 		end
+		bigCount.Text = "GO!"
+		bigCount.Visible = true
+		bigCount.TextTransparency = 0
+		bigScale.Scale = 2
+		tween(bigScale, 0.6, { Scale = 1 }, Enum.EasingStyle.Back)
+		task.delay(1, function()
+			tween(bigCount, 0.4, { TextTransparency = 1 })
+			task.wait(0.45)
+			if not lastShownNumber then
+				bigCount.Visible = false
+			end
+		end)
 	end
 end
 
@@ -535,11 +542,11 @@ local function mutationPopup(mutId, planetName, isNew)
 	orbGradient.Parent = orb
 	local orbStroke = stroke(Color3.new(1, 1, 1), 2, 0.2)
 	orbStroke.Parent = orb
-	label({ Size = UDim2.fromScale(1, 1), Text = tier >= 7 and "✹" or tier >= 5 and "✦" or "✧", Font = TITLE_FONT, TextSize = 34,
+	label({ Size = UDim2.fromScale(1, 1), Text = tier >= 7 and "🌟" or tier >= 5 and "✨" or "⭐", Font = TITLE_FONT, TextSize = 30,
 		TextXAlignment = Enum.TextXAlignment.Center, Parent = orb }, { textStroke(2) })
 	-- text
 	local top = label({ Position = UDim2.fromOffset(80, 9), Size = UDim2.new(1, -90, 0, 14), TextSize = 11,
-		Text = isNew and "★ NEW DISCOVERY! ★" or "MUTATION!", TextColor3 = isNew and rgb(255, 230, 110) or rarity.Color, Parent = frame })
+		Text = isNew and "⭐ NEW DISCOVERY! ⭐" or "MUTATION!", TextColor3 = isNew and rgb(255, 230, 110) or rarity.Color, Parent = frame })
 	local name = label({ Position = UDim2.fromOffset(80, 22), Size = UDim2.new(1, -90, 0, 30), Font = TITLE_FONT, TextSize = 26, Text = m.Name,
 		TextTruncate = Enum.TextTruncate.AtEnd, Parent = frame }, { textStroke(2) })
 	local nameGradient = gradient(m.Color, m.Color2)
@@ -561,7 +568,7 @@ local function mutationPopup(mutId, planetName, isNew)
 		rareScreen(m.Color, m.Color2, tier)
 	end
 	if tier >= 7 then
-		banner({ Header = "✹ DIVINE MUTATION ✹", Title = string.upper(m.Name) .. "!!!", Desc = "Your " .. (planetName or "planet") .. " is now worth x" .. tostring(m.SellMult) .. "!",
+		banner({ Header = "🌟 DIVINE MUTATION 🌟", Title = string.upper(m.Name) .. "!!!", Desc = "Your " .. (planetName or "planet") .. " is now worth x" .. tostring(m.SellMult) .. "!",
 			Color = m.Color, Color2 = m.Color2, Hold = 6 })
 	end
 

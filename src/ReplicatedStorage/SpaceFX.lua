@@ -118,7 +118,7 @@ function SpaceFX.Emitter(parent, props)
 	e.Texture = SpaceFX.Texture(props.Tex)
 	local colors = props.Colors
 	if colors then
-		e.Color = #colors == 1 and ColorSequence.new(colors[1]) or Stardust.Colors(colors)
+		e.Color = #colors >= 3 and Stardust.Colors(colors) or ColorSequence.new(colors[1], colors[2] or colors[1])
 	else
 		e.Color = ColorSequence.new(props.Color or Color3.new(1, 1, 1), props.Color2 or props.Color or Color3.new(1, 1, 1))
 	end
@@ -137,7 +137,7 @@ function SpaceFX.Emitter(parent, props)
 	e.SpreadAngle = props.Spread or Vector2.new(10, 10)
 	e.Rate = props.Rate or 10
 	e.Rotation = NumberRange.new(0, 360)
-	local spin = props.Spin or 30
+	local spin = math.abs(props.Spin or 30)
 	e.RotSpeed = NumberRange.new(-spin, spin)
 	e.Acceleration = props.Acceleration or Vector3.zero
 	e.Drag = props.Drag or 0

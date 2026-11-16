@@ -358,8 +358,9 @@ local function lookTexture(name)
 	return TEXTURES[name] or Stardust.Texture(name)
 end
 
+local LOOK_MIN_RADIUS = 1.8 -- tiny planets (black holes, pulsars) still get a look you can see
 local function liveRadius(body)
-	return math.max(body.Size.X, body.Size.Y, body.Size.Z) / 2
+	return math.max(math.max(body.Size.X, body.Size.Y, body.Size.Z) / 2, LOOK_MIN_RADIUS)
 end
 
 local function lookPart(parent, shape, color, material, transparency)
@@ -419,6 +420,7 @@ end
 
 local function lookAura(body, r, m)
 	local look = m.Look or {}
+	r = math.max(r, LOOK_MIN_RADIUS)
 	local k = math.clamp(r / 3, 0.5, 3) -- particle speeds grow a little with the planet
 	local emitters = {}
 	local holder = Instance.new("Folder")
@@ -444,7 +446,7 @@ local function lookAura(body, r, m)
 		local life = e.Life or { 1, 2 }
 		local speed = e.Speed or { 0.5, 1.5 }
 		local t0 = e.T0 or 0
-		local spin = e.Spin or 60
+		local spin = math.abs(e.Spin or 60)
 		local em = emitter(host, {
 			Texture = lookTexture(e.Tex), Rate = e.Rate or 10,
 			Lifetime = NumberRange.new(life[1], life[2]),

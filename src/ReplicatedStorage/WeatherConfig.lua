@@ -165,7 +165,7 @@ WeatherConfig.List = {
 		Weight = 3, Duration = { 90, 120 },
 		Mutations = { { Id = "blackhole", Chance = 0.006 }, { Id = "wormhole", Chance = 0.0015 } },
 		Sky = "voidnebula",
-		Lighting = { Tint = rgb(190, 170, 230), Bright = -0.1, Sat = -0.1, Contrast = 0.2, Fog = rgb(60, 20, 100), Density = 0.5, Haze = 2, Bloom = 1.6, Ambient = rgb(90, 60, 140) },
+		Lighting = { Tint = rgb(200, 180, 240), Bright = -0.04, Sat = -0.05, Contrast = 0.2, Fog = rgb(90, 40, 140), Density = 0.45, Haze = 2, Bloom = 1.6, Ambient = rgb(120, 90, 170) },
 		Particles = {
 			{ Tex = "Void", Rate = 8, Colors = { rgb(150, 70, 255), rgb(60, 20, 120) }, Speed = 4, Size = 6, Life = 5, Dir = "float", Spin = 120 },
 			{ Tex = "SPARKLE", Rate = 50, Colors = { rgb(255, 170, 80), rgb(200, 120, 255) }, Speed = 40, Size = 0.5, Life = 2, Dir = "toward" },
@@ -193,7 +193,7 @@ WeatherConfig.List = {
 		Weight = 6, Duration = { 120, 150 },
 		Mutations = { { Id = "radioactive", Chance = 0.01 }, { Id = "abducted", Chance = 0.0025 } },
 		Sky = "purple",
-		Lighting = { Tint = rgb(190, 255, 180), Bright = -0.12, Sat = 0.1, Contrast = 0.15, Fog = rgb(60, 140, 40), Density = 0.48, Haze = 2, Bloom = 1.6, Ambient = rgb(80, 150, 70) },
+		Lighting = { Tint = rgb(200, 255, 190), Bright = -0.03, Sat = 0.15, Contrast = 0.1, Fog = rgb(110, 200, 80), Density = 0.4, Haze = 2, Bloom = 1.6, Ambient = rgb(120, 190, 110) },
 		Particles = {
 			{ Tex = "Quantum", Rate = 18, Colors = { rgb(140, 255, 80), rgb(190, 90, 255) }, Speed = 4, Size = 1, Life = 4, Dir = "float", Spin = 90 },
 			{ Tex = "Dust", Rate = 30, Colors = { rgb(140, 255, 80), rgb(60, 200, 40) }, Speed = 5, Size = 0.6, Life = 4, Dir = "up" },
@@ -207,10 +207,11 @@ WeatherConfig.List = {
 		Weight = 12, Duration = { 150, 210 }, Boost = "frozen",
 		Mutations = { { Id = "frozen", Chance = 0.05 }, { Id = "glacial", Chance = 0.01 } },
 		Sky = "milkyway",
-		Lighting = { Tint = rgb(215, 240, 255), Bright = 0.02, Sat = -0.15, Fog = rgb(200, 235, 255), Density = 0.55, Haze = 3, Bloom = 1.2, Ambient = rgb(170, 210, 255) },
+		Lighting = { Tint = rgb(220, 242, 255), Bright = 0.05, Sat = -0.15, Fog = rgb(205, 235, 255), Density = 0.55, Haze = 6, Glare = 1, Bloom = 1.2, Ambient = rgb(180, 215, 255) },
 		Particles = {
-			{ Tex = "SPARKLE", Rate = 260, Colors = { rgb(255, 255, 255), rgb(190, 230, 255) }, Speed = 55, Size = 0.5, Life = 2, Dir = "side" },
-			{ Tex = "Glint", Rate = 30, Colors = { rgb(200, 240, 255), rgb(120, 190, 255) }, Speed = 40, Size = 1, Life = 2, Dir = "side", Spin = 200 },
+			{ Tex = "SPARKLE", Rate = 240, Colors = { rgb(255, 255, 255), rgb(190, 230, 255) }, Speed = 45, Size = 1.4, Life = 2.6, Dir = "side" },
+			{ Tex = "Glint", Rate = 40, Colors = { rgb(220, 245, 255), rgb(140, 200, 255) }, Speed = 35, Size = 2.2, Life = 2.6, Dir = "side", Spin = 200 },
+			{ Tex = "Dust", Rate = 60, Colors = { rgb(255, 255, 255), rgb(200, 235, 255) }, Speed = 10, Size = 1, Life = 4, Dir = "down" },
 		},
 		Props = {},
 		Ambient = SND.wind, AmbientVolume = 0.5, StartSound = SND.whoosh,

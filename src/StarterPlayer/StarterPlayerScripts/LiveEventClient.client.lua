@@ -426,8 +426,8 @@ visuals.mothership = function(event)
 		props.Parent = model
 		return SpaceFX.Part(props)
 	end
-	local hull = piece({ Name = "Hull", Shape = Enum.PartType.Cylinder, Size = Vector3.new(14, 190, 190), Color = rgb(70, 75, 95), Material = Enum.Material.DiamondPlate })
-	local rim = piece({ Name = "Rim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(6, 205, 205), Color = rgb(40, 42, 55), Material = Enum.Material.Metal })
+	local hull = piece({ Name = "Hull", Shape = Enum.PartType.Cylinder, Size = Vector3.new(14, 190, 190), Color = rgb(150, 158, 180), Material = Enum.Material.DiamondPlate })
+	local rim = piece({ Name = "Rim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(6, 205, 205), Color = rgb(95, 100, 120), Material = Enum.Material.Metal })
 	local dome = piece({ Name = "Dome", Shape = Enum.PartType.Ball, Size = Vector3.new(80, 80, 80), Color = rgb(120, 255, 140), Material = Enum.Material.Glass, Transparency = 0.35 })
 	local belly = piece({ Name = "Belly", Shape = Enum.PartType.Cylinder, Size = Vector3.new(4, 70, 70), Color = rgb(120, 255, 120), Material = Enum.Material.Neon })
 	local lights = {}
