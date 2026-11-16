@@ -20,6 +20,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
+local GuiService = game:GetService("GuiService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -129,6 +130,7 @@ local panel = new("Frame", {
 	Position = IS_PHONE and UDim2.fromOffset(48, 6) or UDim2.fromOffset(72, 10), Size = UDim2.fromOffset(250, 220), Parent = gui,
 }, { new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
 ScreenFit.ScaleOnPhone(panel, 0.52)
+local PHONE_SCALE = 0.52
 
 local function card(name, order)
 	local frame = new("Frame", {
@@ -192,6 +194,27 @@ local hideButton = new("TextButton", {
 	BackgroundTransparency = 0.1, Font = TITLE_FONT, Text = "-", TextSize = 22, TextColor3 = Color3.new(1, 1, 1),
 	AutoButtonColor = true, Parent = weatherCard.Frame,
 }, { new("UICorner", { CornerRadius = UDim.new(1, 0) }), stroke(Color3.new(1, 1, 1), 1.5, 0.5) })
+
+-- computers: top left. Phones: up in the top-right corner of Roblox's top bar row, just left of the
+-- settings button (the event card, when there is one, hangs below it)
+local function placePanel()
+	if ScreenFit.IsPhone() then
+		local inset = GuiService:GetGuiInset().Y
+		local cardHeight = 64 * PHONE_SCALE
+		local y = inset > cardHeight and -(inset + cardHeight) / 2 or 6
+		panel.AnchorPoint = Vector2.new(1, 0)
+		panel.Position = UDim2.new(1, -(8 + 34 + 8), 0, y)
+		mini.AnchorPoint = Vector2.new(1, 0)
+		mini.Position = UDim2.new(1, -(8 + 34 + 8), 0, inset > 33 and -(inset + 33) / 2 or 6)
+	else
+		panel.AnchorPoint = Vector2.new(0, 0)
+		panel.Position = UDim2.fromOffset(72, 10)
+		mini.AnchorPoint = Vector2.new(0, 0)
+		mini.Position = panel.Position
+	end
+end
+ScreenFit.Watch(placePanel)
+task.delay(1, placePanel) -- (Roblox's top bar size is only known a moment later)
 
 local function setCollapsed(collapsed)
 	panel.Visible = not collapsed

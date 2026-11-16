@@ -21,6 +21,7 @@ local StarterGui = game:GetService("StarterGui")
 local SoundService = game:GetService("SoundService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -1138,6 +1139,25 @@ end)
 ---------------------------------------------------------------------
 -- Fit the screen: phones get fewer, bigger-to-tap slots that fit between the joystick and jump button
 ---------------------------------------------------------------------
+-- settings: top-left on computers; on phones up in the top-right corner of Roblox's top bar row
+-- (the weather card sits just left of it) and the settings window opens below it
+local function placeSettings()
+	if ScreenFit.IsPhone() then
+		local inset = GuiService:GetGuiInset().Y
+		settingsButton.Size = UDim2.fromOffset(34, 34)
+		settingsButton.AnchorPoint = Vector2.new(1, 0)
+		settingsButton.Position = UDim2.new(1, -8, 0, inset > 34 and -(inset + 34) / 2 or 6)
+		settingsPanel.AnchorPoint = Vector2.new(1, 0)
+		settingsPanel.Position = UDim2.new(1, -8, 0, 6)
+	else
+		settingsButton.Size = UDim2.fromOffset(52, 52)
+		settingsButton.AnchorPoint = Vector2.new(0, 0)
+		settingsButton.Position = UDim2.fromOffset(12, 10)
+		settingsPanel.AnchorPoint = Vector2.new(0, 0)
+		settingsPanel.Position = UDim2.fromOffset(12, 72)
+	end
+end
+task.delay(1, placeSettings) -- (Roblox's top bar size is only known a moment after joining)
 ScreenFit.Watch(function()
 	local phone = ScreenFit.IsPhone()
 	local size = ScreenFit.Size()
@@ -1155,16 +1175,7 @@ ScreenFit.Watch(function()
 		slots[i].Key.Visible = not phone and UserInputService.KeyboardEnabled
 	end
 
-	-- settings: top-left (smaller on phones; the coins are at the bottom left on every screen)
-	if phone then
-		settingsButton.Size = UDim2.fromOffset(34, 34)
-		settingsButton.Position = UDim2.fromOffset(8, 6)
-		settingsPanel.Position = UDim2.fromOffset(48, 6)
-	else
-		settingsButton.Size = UDim2.fromOffset(52, 52)
-		settingsButton.Position = UDim2.fromOffset(12, 10)
-		settingsPanel.Position = UDim2.fromOffset(12, 72)
-	end
+	placeSettings()
 
 	if panel.Visible then
 		panelScale.Scale = fitPanel()
