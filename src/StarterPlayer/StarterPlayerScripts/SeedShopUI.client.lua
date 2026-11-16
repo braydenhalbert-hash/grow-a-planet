@@ -461,36 +461,123 @@ local topGui = make("ScreenGui", {
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, playerGui)
 
+-- COIN BAR (bottom left), Grow a Garden style: no box, just big outlined italic text
+--   Friend Boost: +10%  [+]      <- +10% sell money per friend in the server; [+] invites a friend
+--   971.7T¢                      <- your coins
+local HUD_FONT = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
+
 local hud = make("Frame", {
 	Name = "Coins",
 	AnchorPoint = Vector2.new(0, 1),
 	Position = UDim2.new(0, 16, 1, -16), -- bottom left corner of the screen
-	Size = UDim2.fromOffset(190, 40),
-	BackgroundTransparency = 1, -- no box, no border: just the coins
+	Size = UDim2.fromOffset(420, 96),
+	BackgroundTransparency = 1,
 }, topGui)
 
-local hudCoin = make("Frame", {
-	Position = UDim2.new(0, 10, 0.5, -12),
-	Size = UDim2.fromOffset(24, 24),
-	BackgroundColor3 = Color3.fromRGB(255, 195, 50),
-}, hud)
-make("UICorner", { CornerRadius = UDim.new(1, 0) }, hudCoin)
-stroke(hudCoin, Color3.fromRGB(150, 90, 10), 2)
-label({
-	Text = "$",
-	TextSize = 16,
-	TextXAlignment = Enum.TextXAlignment.Center,
+-- everything sits in Body so phones can shrink it (hud's own UIScale is the coin "pulse")
+local hudBody = make("Frame", {
+	Name = "Body",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.fromScale(0, 1),
 	Size = UDim2.fromScale(1, 1),
-}, hudCoin)
-
-local coinLabel = label({
-	Name = "Amount",
-	Text = "0",
-	TextSize = 24,
-	TextColor3 = Color3.fromRGB(255, 225, 110),
-	Position = UDim2.new(0, 44, 0, 0),
-	Size = UDim2.new(1, -54, 1, 0),
+	BackgroundTransparency = 1,
 }, hud)
+make("UIListLayout", {
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	VerticalAlignment = Enum.VerticalAlignment.Bottom,
+	Padding = UDim.new(0, 2),
+}, hudBody)
+
+local boostRow = make("Frame", {
+	Name = "FriendBoost",
+	LayoutOrder = 1,
+	Size = UDim2.new(1, 0, 0, 40),
+	BackgroundTransparency = 1,
+}, hudBody)
+local boostLabel = make("TextLabel", {
+	Name = "Text",
+	AutomaticSize = Enum.AutomaticSize.X,
+	Size = UDim2.new(0, 0, 1, 0),
+	BackgroundTransparency = 1,
+	FontFace = HUD_FONT,
+	TextSize = 34,
+	TextColor3 = Color3.fromRGB(40, 255, 40),
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Text = "Friend Boost: +0%",
+}, boostRow)
+make("UIStroke", { Color = Color3.fromRGB(10, 70, 10), Thickness = 2.5 }, boostLabel)
+
+-- the green [+] button: invite a friend (more friends here = bigger boost)
+local inviteButton = make("TextButton", {
+	Name = "Invite",
+	AnchorPoint = Vector2.new(0, 0.5),
+	Position = UDim2.new(0, 0, 0.5, 0),
+	Size = UDim2.fromOffset(36, 36),
+	BackgroundColor3 = Color3.fromRGB(30, 200, 30),
+	AutoButtonColor = true,
+	Text = "",
+}, boostRow)
+make("UIStroke", { Color = Color3.fromRGB(10, 70, 10), Thickness = 2.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, inviteButton)
+make("UIGradient", {
+	Color = ColorSequence.new(Color3.fromRGB(140, 255, 140), Color3.fromRGB(20, 150, 20)),
+	Rotation = 90,
+}, inviteButton)
+for _, size in ipairs({ UDim2.new(0.62, 0, 0.2, 0), UDim2.new(0.2, 0, 0.62, 0) }) do
+	local bar = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = size,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+	}, inviteButton)
+	make("UIStroke", { Color = Color3.fromRGB(10, 70, 10), Thickness = 1.5 }, bar)
+end
+local function placeInvite()
+	inviteButton.Position = UDim2.new(0, boostLabel.AbsoluteSize.X / math.max(hudBody.AbsoluteSize.X / 420, 0.01) + 8, 0.5, 0)
+end
+boostLabel:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeInvite)
+inviteButton.Activated:Connect(function()
+	local SocialService = game:GetService("SocialService")
+	local ok, canInvite = pcall(SocialService.CanSendGameInviteAsync, SocialService, player)
+	if ok and canInvite then
+		pcall(SocialService.PromptGameInvite, SocialService, player)
+	end
+end)
+
+local function renderBoost()
+	boostLabel.Text = "Friend Boost: +" .. tostring(player:GetAttribute("FriendBoost") or 0) .. "%"
+	placeInvite()
+end
+renderBoost()
+player:GetAttributeChangedSignal("FriendBoost"):Connect(renderBoost)
+
+local coinRow = make("Frame", {
+	Name = "CoinRow",
+	LayoutOrder = 2,
+	Size = UDim2.new(1, 0, 0, 48),
+	BackgroundTransparency = 1,
+}, hudBody)
+local coinLabel = make("TextLabel", {
+	Name = "Amount",
+	AutomaticSize = Enum.AutomaticSize.X,
+	Size = UDim2.new(0, 0, 1, 0),
+	BackgroundTransparency = 1,
+	FontFace = HUD_FONT,
+	TextSize = 44,
+	TextColor3 = Color3.new(1, 1, 1),
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Text = "0¢",
+}, coinRow)
+make("UIStroke", { Color = Color3.fromRGB(50, 25, 20), Thickness = 3 }, coinLabel)
+
+-- where flying coins land: the end of the coin number
+local hudCoin = make("Frame", {
+	Name = "CoinTarget",
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.fromScale(1, 0.5),
+	Size = UDim2.fromOffset(24, 24),
+	BackgroundTransparency = 1,
+}, coinLabel)
 
 local showToast -- the pop-up messages are made further down (they use the stud look)
 local showRestock -- the "restocked" pop-ups too
@@ -826,6 +913,7 @@ make("UIListLayout", {
 -- PHONES: smaller pop-ups, and the coins move to the top-left (the joystick lives bottom-left)
 ScreenFit.ScaleOnPhone(toastHolder, 0.75)
 ScreenFit.ScaleOnPhone(restockHolder, 0.7)
+ScreenFit.ScaleOnPhone(hudBody, 0.55)
 local tabsScale = make("UIScale", { Name = "TopBarScale" }, tabs)
 local TABS_W, TABS_H = 560, 64
 local function placeTabs()
@@ -858,12 +946,16 @@ ScreenFit.Watch(function()
 	placeTabs()
 	if ScreenFit.IsPhone() then
 		hud.AnchorPoint = Vector2.new(0, 0)
-		hud.Position = UDim2.fromOffset(6, 4)
+		hud.Position = UDim2.fromOffset(6, 2)
+		hudBody.AnchorPoint = Vector2.new(0, 0)
+		hudBody.Position = UDim2.fromScale(0, 0)
 		toastHolder.Position = UDim2.new(0.5, 0, 0, 8)
 		restockHolder.Position = UDim2.new(1, -8, 0, 68)
 	else
 		hud.AnchorPoint = Vector2.new(0, 1)
 		hud.Position = UDim2.new(0, 16, 1, -16)
+		hudBody.AnchorPoint = Vector2.new(0, 1)
+		hudBody.Position = UDim2.fromScale(0, 1)
 		toastHolder.Position = UDim2.new(0.5, 0, 0, 12)
 		restockHolder.Position = UDim2.new(1, -16, 0, 64)
 	end
@@ -1952,8 +2044,21 @@ local shownCoins = player:GetAttribute("Coins") or 0
 local pendingReward = 0 -- coins that are still flying toward the coin bar
 local coinCheckId = 0
 
+-- 971.7T¢ style: full number below 10,000, then K / M / B / T / Qd / Qn with one decimal
+local COIN_SUFFIXES = { "K", "M", "B", "T", "Qd", "Qn", "Sx", "Sp", "Oc", "No", "Dc" }
+local function shortCoins(n)
+	n = math.floor(n)
+	if n < 10000 then
+		return commas(n)
+	end
+	local index = math.min(math.floor(math.log10(n) / 3), #COIN_SUFFIXES)
+	local value = n / 10 ^ (index * 3)
+	local text = string.format("%.1f", math.floor(value * 10) / 10):gsub("%.0$", "")
+	return text .. COIN_SUFFIXES[index]
+end
+
 local function renderCoins()
-	coinLabel.Text = commas(shownCoins)
+	coinLabel.Text = shortCoins(shownCoins) .. "¢"
 end
 renderCoins()
 

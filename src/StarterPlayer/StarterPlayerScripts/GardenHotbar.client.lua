@@ -1059,8 +1059,8 @@ ScreenFit.Watch(function()
 	-- settings: top-left on computers, left side (under the coins) on phones
 	if phone then
 		settingsButton.Size = UDim2.fromOffset(44, 44)
-		settingsButton.Position = UDim2.fromOffset(8, 48)
-		settingsPanel.Position = UDim2.fromOffset(60, 48)
+		settingsButton.Position = UDim2.fromOffset(8, 62) -- below the coins + Friend Boost
+		settingsPanel.Position = UDim2.fromOffset(60, 62)
 	else
 		settingsButton.Size = UDim2.fromOffset(52, 52)
 		settingsButton.Position = UDim2.fromOffset(12, 10)
