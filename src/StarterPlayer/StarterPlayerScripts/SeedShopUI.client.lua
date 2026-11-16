@@ -942,13 +942,41 @@ local function placeTabs()
 	tabs.Position = UDim2.new(0, center, 0, -inset / 2)
 end
 GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(placeTabs)
+
+-- on phones the coins sit at the bottom, just above the hotbar and lined up with its left edge
+-- (the bottom-left corner itself belongs to the movement joystick)
+local function hotbarFrame()
+	local hotbarGui = playerGui:FindFirstChild("GardenHotbar")
+	return hotbarGui and hotbarGui:FindFirstChild("Bar")
+end
+local function placeHudOnPhone()
+	if not ScreenFit.IsPhone() then
+		return
+	end
+	local bar = hotbarFrame()
+	local size = ScreenFit.Size()
+	local left = bar and bar.AbsolutePosition.X or size.X * 0.21
+	local height = bar and bar.AbsoluteSize.Y or 70
+	hud.AnchorPoint = Vector2.new(0, 1)
+	hud.Position = UDim2.new(0, math.max(left, 8), 1, -(height + 12))
+end
+task.spawn(function()
+	local hotbarGui = playerGui:WaitForChild("GardenHotbar", 30)
+	local bar = hotbarGui and hotbarGui:WaitForChild("Bar", 10)
+	if bar then
+		bar:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeHudOnPhone)
+		bar:GetPropertyChangedSignal("AbsolutePosition"):Connect(placeHudOnPhone)
+		placeHudOnPhone()
+	end
+end)
+
 ScreenFit.Watch(function()
 	placeTabs()
 	if ScreenFit.IsPhone() then
-		hud.AnchorPoint = Vector2.new(0, 0)
-		hud.Position = UDim2.fromOffset(6, 2)
-		hudBody.AnchorPoint = Vector2.new(0, 0)
-		hudBody.Position = UDim2.fromScale(0, 0)
+		-- at the bottom on phones too (out of the way of the top of the screen)
+		placeHudOnPhone()
+		hudBody.AnchorPoint = Vector2.new(0, 1)
+		hudBody.Position = UDim2.fromScale(0, 1)
 		toastHolder.Position = UDim2.new(0.5, 0, 0, 8)
 		restockHolder.Position = UDim2.new(1, -8, 0, 68)
 	else

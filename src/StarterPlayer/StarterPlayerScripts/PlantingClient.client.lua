@@ -4,7 +4,9 @@
 
 	Equip a seed and point at a garden bed: a see-through preview of the planet follows your
 	mouse with a circle on the ground (green = you can plant here, red = you can't).
-	Click to plant. On a phone, tap the bed.
+	Click to plant.
+	On phones / tablets: tap the bed to put the planet there (tap again anywhere to move it),
+	then press the green check on the right to plant it, or the red X to cancel.
 
 	The server (PlantingServer) checks everything again, so this is only the preview and the click.
 
@@ -23,6 +25,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local PlanetCatalog = require(ReplicatedStorage:WaitForChild("PlanetCatalog"))
 local PlanetBuilder = require(ReplicatedStorage:WaitForChild("PlanetBuilder"))
+local ScreenFit = require(ReplicatedStorage:WaitForChild("ScreenFit"))
 
 local remotes = ReplicatedStorage:WaitForChild("PlanetRemotes")
 local plantRemote = remotes:WaitForChild("PlantSeed")
@@ -58,9 +61,58 @@ hint.Font = Enum.Font.FredokaOne
 hint.TextSize = 20
 hint.TextColor3 = Color3.new(1, 1, 1)
 hint.TextStrokeTransparency = 0
-hint.Text = "Click a garden bed to plant. Red circles are too close to other planets."
+hint.Text = "" -- set every frame (different words for touch screens)
 hint.Visible = false
+hint.TextWrapped = true
 hint.Parent = hintGui
+
+local COMPUTER_HINT = "Click a garden bed to plant. Red circles are too close to other planets."
+local TOUCH_HINT = "Tap a garden bed to place your planet, then press the check mark."
+
+-- touch screens move the planet with taps and confirm with these buttons (right side)
+local TOUCH_BUTTON_SIZE = 70
+local confirmHolder = Instance.new("Frame")
+confirmHolder.Name = "PlaceButtons"
+confirmHolder.AnchorPoint = Vector2.new(1, 0.5)
+confirmHolder.Position = UDim2.new(1, -14, 0.38, 0) -- above the jump button
+confirmHolder.Size = UDim2.fromOffset(TOUCH_BUTTON_SIZE, TOUCH_BUTTON_SIZE * 2 + 14)
+confirmHolder.BackgroundTransparency = 1
+confirmHolder.Visible = false
+confirmHolder.Parent = hintGui
+local confirmLayout = Instance.new("UIListLayout")
+confirmLayout.Padding = UDim.new(0, 14)
+confirmLayout.SortOrder = Enum.SortOrder.LayoutOrder
+confirmLayout.Parent = confirmHolder
+
+local function roundButton(name, order, text, color)
+	local button = Instance.new("TextButton")
+	button.Name = name
+	button.LayoutOrder = order
+	button.Size = UDim2.fromOffset(TOUCH_BUTTON_SIZE, TOUCH_BUTTON_SIZE)
+	button.BackgroundColor3 = color
+	button.AutoButtonColor = true
+	button.Font = Enum.Font.FredokaOne
+	button.Text = text
+	button.TextSize = 40
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.Parent = confirmHolder
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = button
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(20, 20, 30)
+	stroke.Thickness = 3
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = button
+	local textStroke = Instance.new("UIStroke")
+	textStroke.Color = Color3.fromRGB(20, 20, 30)
+	textStroke.Thickness = 2
+	textStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	textStroke.Parent = button
+	return button
+end
+local confirmButton = roundButton("Place", 1, "✓", Color3.fromRGB(60, 200, 90))
+local cancelButton = roundButton("Cancel", 2, "X", Color3.fromRGB(225, 60, 60))
 
 ---------------------------------------------------------------------
 -- Helpers
@@ -321,31 +373,68 @@ end
 
 local HIDDEN = CFrame.new(0, -5000, 0)
 
+-- phones and tablets (or anyone whose last input was a touch)
+local function touchMode()
+	if not UserInputService.TouchEnabled then
+		return false
+	end
+	return not UserInputService.MouseEnabled or UserInputService:GetLastInputType() == Enum.UserInputType.Touch
+end
+
+-- on touch screens: where the planet is waiting to be planted ({ Instance, Position } or nil)
+local touchSpot = nil
+local touchSpotOk = false
+
 RunService.RenderStepped:Connect(function()
 	local _, planet = equippedSeed()
 	if not planet then
 		clearGhost()
 		clearZones()
 		hint.Visible = false
+		touchSpot = nil
+		confirmHolder.Visible = false
 		return
 	end
 
-	hint.Visible = true
+	local touching = touchMode()
+	hint.Text = touching and TOUCH_HINT or COMPUTER_HINT
+	-- on phones the coins sit just above the hotbar, so the hint goes a bit higher and smaller
+	if ScreenFit.IsPhone() then
+		hint.Position = UDim2.new(0.5, 0, 1, -150)
+		hint.TextSize = 15
+	else
+		hint.Position = UDim2.new(0.5, 0, 1, -112)
+		hint.TextSize = 20
+	end
+	hint.Visible = not (touching and touchSpot) -- the buttons explain themselves once a spot is picked
 	syncZones(planet)
 	if not ensureGhost(planet) then
 		return
 	end
 
 	local camera = workspace.CurrentCamera
-	local mouse = UserInputService:GetMouseLocation()
-	local result = raycast(camera:ViewportPointToRay(mouse.X, mouse.Y))
+	local result
+	if touching then
+		result = touchSpot
+		confirmHolder.Visible = touchSpot ~= nil
+	else
+		confirmHolder.Visible = false
+		local mouse = UserInputService:GetMouseLocation()
+		result = raycast(camera:ViewportPointToRay(mouse.X, mouse.Y))
+	end
 
 	if result then
 		local ground = result.Position
 		local lift = HOVER + (planet.Look.Size / 2) * DISPLAY_SCALE
 		ghost:PivotTo(CFrame.new(ground + Vector3.new(0, lift, 0)))
 		marker.CFrame = CFrame.new(ground + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.rad(90))
-		marker.Color = isValidSpot(result, planet) and OK_COLOR or BAD_COLOR
+		local ok = isValidSpot(result, planet)
+		marker.Color = ok and OK_COLOR or BAD_COLOR
+		if touching then
+			touchSpotOk = ok
+			-- the check mark is grey while the spot can't be planted on
+			confirmButton.BackgroundColor3 = ok and Color3.fromRGB(60, 200, 90) or Color3.fromRGB(120, 125, 130)
+		end
 	else
 		ghost:PivotTo(HIDDEN)
 		marker.CFrame = HIDDEN
@@ -388,13 +477,40 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	tryPlant(camera:ViewportPointToRay(mouse.X, mouse.Y))
 end)
 
+-- touch screens: a tap moves the planet there (it isn't planted until you press the check mark)
 UserInputService.TouchTapInWorld:Connect(function(position, processed)
 	if processed then
 		return
 	end
 	local camera = workspace.CurrentCamera
-	if not camera then
+	if not camera or not equippedSeed() then
 		return
 	end
-	tryPlant(camera:ScreenPointToRay(position.X, position.Y))
+	local result = raycast(camera:ScreenPointToRay(position.X, position.Y))
+	if result then
+		touchSpot = { Instance = result.Instance, Position = result.Position }
+	end
+end)
+
+confirmButton.Activated:Connect(function()
+	local _, planet = equippedSeed()
+	if not planet or not touchSpot then
+		return
+	end
+	if not touchSpotOk then
+		-- let the server explain why (too close, not your base...)
+		plantRemote:FireServer(planet.Id, touchSpot.Position)
+		return
+	end
+	local now = os.clock()
+	if now - lastClick < CLICK_COOLDOWN then
+		return
+	end
+	lastClick = now
+	plantRemote:FireServer(planet.Id, touchSpot.Position)
+	touchSpot = nil -- tap somewhere else for the next one
+end)
+
+cancelButton.Activated:Connect(function()
+	touchSpot = nil
 end)
