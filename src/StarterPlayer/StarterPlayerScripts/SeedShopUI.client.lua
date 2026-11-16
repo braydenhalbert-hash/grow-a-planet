@@ -955,7 +955,32 @@ local function placeTabs()
 	end
 	local width = camera.ViewportSize.X
 	local inset = GuiService:GetGuiInset().Y
-	-- phones (or no top bar row): centered at the top, just under Roblox's top bar
+	-- phones: squeezed up into Roblox's top bar row, in the free space between Roblox's buttons (left)
+	-- and the weather card + settings button (right)
+	if ScreenFit.IsPhone() and inset >= 30 then
+		local left = topBarLeftEdge(width)
+		local right = width
+		local weather = playerGui:FindFirstChild("WeatherHUD")
+		for _, name in ipairs({ "WeatherPanel", "WeatherMini" }) do
+			local thing = weather and weather:FindFirstChild(name)
+			if thing and thing.Visible and thing.AbsoluteSize.X > 0 then
+				right = math.min(right, thing.AbsolutePosition.X)
+			end
+		end
+		local hotbarGui = playerGui:FindFirstChild("GardenHotbar")
+		local settings = hotbarGui and hotbarGui:FindFirstChild("SettingsButton")
+		if settings and settings.AbsoluteSize.X > 0 then
+			right = math.min(right, settings.AbsolutePosition.X)
+		end
+		local scale = math.min(PHONE_TABS_SCALE, (inset - 10) / TABS_H, (right - left - 16) / TABS_W)
+		if scale >= 0.42 then
+			tabsScale.Scale = scale
+			tabs.AnchorPoint = Vector2.new(0.5, 0.5)
+			tabs.Position = UDim2.new(0, (left + right) / 2, 0, -inset / 2)
+			return
+		end
+	end
+	-- phones without room in the row (or no top bar row): centered at the top, just under Roblox's top bar
 	if ScreenFit.IsPhone() or inset < 30 then
 		tabsScale.Scale = math.min(PHONE_TABS_SCALE, (width - 40) / TABS_W)
 		tabs.AnchorPoint = Vector2.new(0.5, 0)
@@ -985,6 +1010,21 @@ task.spawn(function()
 		task.wait(2)
 		placeTabs()
 	end
+end)
+-- the weather card folding / unfolding changes the room in the top bar row (phones)
+task.spawn(function()
+	local weather = playerGui:WaitForChild("WeatherHUD", 30)
+	if not weather then
+		return
+	end
+	for _, name in ipairs({ "WeatherPanel", "WeatherMini" }) do
+		local thing = weather:WaitForChild(name, 10)
+		if thing then
+			thing:GetPropertyChangedSignal("Visible"):Connect(placeTabs)
+			thing:GetPropertyChangedSignal("AbsolutePosition"):Connect(placeTabs)
+		end
+	end
+	placeTabs()
 end)
 GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(placeTabs)
 
