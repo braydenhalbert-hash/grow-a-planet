@@ -91,7 +91,83 @@ local function clearHighlights(keep)
 	end
 end
 
+-- the spot you picked (click or tap); the preview stays there until you press ✓ or X
+local lockedSpot, lockedPad = nil, nil
+
+---------------------------------------------------------------------
+-- ✓ / X buttons on the right side: confirm placing the sprinkler right where the preview is
+---------------------------------------------------------------------
+local BUTTON_SIZE = 70
+local confirmGui = Instance.new("ScreenGui")
+confirmGui.Name = "SprinklerPlaceGui"
+confirmGui.ResetOnSpawn = false
+confirmGui.DisplayOrder = 5
+confirmGui.Parent = player:WaitForChild("PlayerGui")
+
+local confirmHolder = Instance.new("Frame")
+confirmHolder.Name = "PlaceButtons"
+confirmHolder.AnchorPoint = Vector2.new(1, 0.5)
+confirmHolder.Position = UDim2.new(1, -14, 0.45, 0)
+confirmHolder.Size = UDim2.fromOffset(BUTTON_SIZE, BUTTON_SIZE * 2 + 14)
+confirmHolder.BackgroundTransparency = 1
+confirmHolder.Visible = false
+confirmHolder.Parent = confirmGui
+local confirmLayout = Instance.new("UIListLayout")
+confirmLayout.Padding = UDim.new(0, 14)
+confirmLayout.SortOrder = Enum.SortOrder.LayoutOrder
+confirmLayout.Parent = confirmHolder
+
+local function roundButton(name, order, text, color)
+	local button = Instance.new("TextButton")
+	button.Name = name
+	button.LayoutOrder = order
+	button.Size = UDim2.fromOffset(BUTTON_SIZE, BUTTON_SIZE)
+	button.BackgroundColor3 = color
+	button.AutoButtonColor = true
+	button.Font = Enum.Font.FredokaOne
+	button.Text = text
+	button.TextSize = 40
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.Parent = confirmHolder
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = button
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(20, 20, 30)
+	stroke.Thickness = 3
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = button
+	local textStroke = Instance.new("UIStroke")
+	textStroke.Color = Color3.fromRGB(20, 20, 30)
+	textStroke.Thickness = 2
+	textStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	textStroke.Parent = button
+	return button
+end
+local confirmButton = roundButton("Place", 1, "✓", Color3.fromRGB(60, 200, 90))
+local cancelButton = roundButton("Cancel", 2, "X", Color3.fromRGB(225, 60, 60))
+
+local hintLabel = Instance.new("TextLabel")
+hintLabel.Name = "Hint"
+hintLabel.AnchorPoint = Vector2.new(0.5, 1)
+hintLabel.Position = UDim2.new(0.5, 0, 1, -120)
+hintLabel.Size = UDim2.fromOffset(520, 30)
+hintLabel.BackgroundTransparency = 1
+hintLabel.Font = Enum.Font.FredokaOne
+hintLabel.TextSize = 20
+hintLabel.TextColor3 = Color3.new(1, 1, 1)
+hintLabel.TextStrokeTransparency = 0.2
+hintLabel.Visible = false
+hintLabel.Parent = confirmGui
+
+local function unlock()
+	lockedSpot, lockedPad = nil, nil
+	confirmHolder.Visible = false
+end
+
 local function clearGhost()
+	unlock()
+	hintLabel.Visible = false
 	if ghost then
 		ghost:Destroy()
 	end
@@ -197,7 +273,28 @@ local function place()
 	if ghostGear and ghostSpot and ghostPad and placeRemote then
 		placeRemote:FireServer(ghostGear.Id, ghostSpot, ghostPad)
 	end
+	unlock()
 end
+
+-- pick this spot: the preview stays put and the ✓ / X buttons show up
+local function lockAt(hit)
+	if not ghostGear or not hit or not canPlaceOn(hit.Instance) then
+		return
+	end
+	lockedPad = hit.Instance
+	lockedSpot = snapToPad(hit.Instance, hit.Position)
+	confirmHolder.Visible = true
+end
+
+confirmButton.Activated:Connect(function()
+	if lockedSpot then
+		place()
+	end
+end)
+cancelButton.Activated:Connect(function()
+	unlock()
+	touchPoint = nil
+end)
 
 local hooked = setmetatable({}, { __mode = "k" })
 local function hookTool(tool)
@@ -207,23 +304,19 @@ local function hookTool(tool)
 	hooked[tool] = true
 	tool.Activated:Connect(function()
 		if UserInputService:GetLastInputType() == Enum.UserInputType.Touch then
-			return -- phones and tablets use tap-to-move, tap-again-to-place (below)
+			return -- phones and tablets pick the spot with a tap (below)
 		end
-		place()
+		lockAt(aim(mouse.UnitRay)) -- click = put the preview here, then ✓ places it
 	end)
 end
 
--- mobile: first tap moves the preview there, tapping inside the circle again places it
+-- mobile: a tap moves the preview there, then ✓ places it
 UserInputService.TouchTapInWorld:Connect(function(position, processedByUI)
 	if processedByUI or not ghostGear then
 		return
 	end
-	local hit = aim(camera:ViewportPointToRay(position.X, position.Y))
-	if ghostSpot and hit and canPlaceOn(hit.Instance) and (snapToPad(hit.Instance, hit.Position) - ghostSpot).Magnitude <= 3 then
-		place()
-	else
-		touchPoint = position
-	end
+	touchPoint = position
+	lockAt(aim(camera:ViewportPointToRay(position.X, position.Y)))
 end)
 
 local function flatDistance(a, b)
@@ -281,9 +374,25 @@ RunService.RenderStepped:Connect(function()
 	if not ghostGear or ghostGear.Id ~= gear.Id then
 		makeGhost(gear)
 	end
-	local hit = aim()
-	local ok = hit and canPlaceOn(hit.Instance)
-	local spot = hit and (ok and snapToPad(hit.Instance, hit.Position) or hit.Position)
+	local ok, spot, hit
+	if lockedSpot and lockedPad and lockedPad.Parent and canPlaceOn(lockedPad) then
+		ok, spot, hit = true, lockedSpot, { Instance = lockedPad }
+	else
+		if lockedSpot then
+			unlock()
+		end
+		hit = aim()
+		ok = hit and canPlaceOn(hit.Instance)
+		spot = hit and (ok and snapToPad(hit.Instance, hit.Position) or hit.Position)
+	end
+	hintLabel.Visible = true
+	if lockedSpot then
+		hintLabel.Text = "Press ✓ to place your sprinkler here, or X to move it"
+	elseif UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
+		hintLabel.Text = "Tap your garden to move the sprinkler there"
+	else
+		hintLabel.Text = "Click your garden to put the sprinkler there"
+	end
 	ghostSpot = ok and spot or nil
 	ghostPad = ok and hit.Instance or nil
 	if not spot then

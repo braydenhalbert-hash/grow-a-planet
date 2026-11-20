@@ -392,9 +392,23 @@ local function countKind(kind)
 	end
 	return n
 end
+local function hasTool(kind, attr, id)
+	for _, tool in ipairs(allTools()) do
+		if tool:GetAttribute("Kind") == kind and tool:GetAttribute(attr) == id then
+			return true
+		end
+	end
+	return false
+end
 local Checks = {
 	hasSeed = function()
 		return countKind("Seed") > 0
+	end,
+	hasMoonSeed = function()
+		return hasTool("Seed", "PlanetId", "moon")
+	end,
+	hasBasicSprinkler = function()
+		return hasTool("Gear", "GearId", "sprinkler_basic")
 	end,
 	hasPlant = function()
 		return #myPlants() > 0
@@ -1042,6 +1056,156 @@ local function playSound(id, volume)
 end
 
 ---------------------------------------------------------------------
+-- On-screen pointer: a glowing, pulsing outline + a bouncing arrow on the button you need
+-- (the item in a shop, its buy button, the hotbar slot). Step field: Ui (see TutorialSteps).
+---------------------------------------------------------------------
+local uiPointer = { Want = nil, Target = nil, Glow = nil, Arrow = nil, Scrolled = nil }
+
+local function clearUiGlow()
+	if uiPointer.Glow then
+		uiPointer.Glow:Destroy()
+	end
+	if uiPointer.Arrow then
+		uiPointer.Arrow:Destroy()
+	end
+	uiPointer.Glow, uiPointer.Arrow, uiPointer.Target = nil, nil, nil
+end
+
+local function setUiPointer(want, color)
+	clearUiGlow()
+	uiPointer.Want = want
+	uiPointer.Color = color or rgb(90, 255, 140)
+	uiPointer.Scrolled = nil
+end
+
+local function openShopFrame(shopKind)
+	local gui = playerGui:FindFirstChild("Shop_" .. shopKind)
+	local main = gui and gui:FindFirstChild("Main")
+	if main and main.Visible then
+		return main
+	end
+	return nil
+end
+
+-- which GuiObject should glow right now (nil = nothing on screen to press yet)
+local function resolveUiTarget(want)
+	if not want then
+		return nil
+	end
+	if want.Shop then
+		local main = openShopFrame(want.Shop)
+		local list = main and main:FindFirstChild("List", true)
+		local slot = list and list:FindFirstChild(want.Item)
+		if not slot then
+			return nil
+		end
+		-- scroll the item into view once
+		if uiPointer.Scrolled ~= slot and list:IsA("ScrollingFrame") then
+			uiPointer.Scrolled = slot
+			local y = slot.AbsolutePosition.Y - list.AbsolutePosition.Y + list.CanvasPosition.Y
+			list.CanvasPosition = Vector2.new(0, math.max(0, y - 10))
+		end
+		local buyRow = slot:FindFirstChild("BuyRow")
+		if buyRow and buyRow.Visible and buyRow:FindFirstChild("CoinBuy") then
+			return buyRow.CoinBuy
+		end
+		return slot:FindFirstChild("CardHolder")
+	elseif want.Hotbar then
+		local character = player.Character
+		local held = character and character:FindFirstChildOfClass("Tool")
+		if held and held:GetAttribute("Kind") == want.Hotbar then
+			return nil -- already holding it: now the world arrow shows where to click
+		end
+		local backpack = player:FindFirstChildOfClass("Backpack")
+		local names = {}
+		for _, tool in ipairs(backpack and backpack:GetChildren() or {}) do
+			if tool:IsA("Tool") and tool:GetAttribute("Kind") == want.Hotbar then
+				names[tool.Name] = true
+			end
+		end
+		local bar = playerGui:FindFirstChild("GardenHotbar")
+		bar = bar and bar:FindFirstChild("Bar")
+		for _, slot in ipairs(bar and bar:GetChildren() or {}) do
+			if slot:IsA("GuiButton") and slot.Visible then
+				local label = slot:FindFirstChild("ItemName")
+				if label and names[label.Text] then
+					return slot
+				end
+			end
+		end
+	end
+	return nil
+end
+
+local function buildUiGlow(target, color)
+	local glow = Instance.new("Frame")
+	glow.Name = "TutorialGlow"
+	glow.AnchorPoint = Vector2.new(0.5, 0.5)
+	glow.Position = UDim2.fromScale(0.5, 0.5)
+	glow.Size = UDim2.new(1, 10, 1, 10)
+	glow.BackgroundColor3 = color
+	glow.BackgroundTransparency = 0.85
+	glow.ZIndex = 50
+	glow.Active = false
+	glow.Parent = target
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 14)
+	c.Parent = glow
+	local st = Instance.new("UIStroke")
+	st.Color = color
+	st.Thickness = 5
+	st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	st.Parent = glow
+
+	-- shop cards sit at the top of a scrolling list (an arrow above would be cut off), so they get
+	-- a sideways arrow inside the card; everything else gets a bouncing arrow on top
+	local side = target.Name == "CardHolder"
+	local arrow = Instance.new("TextLabel")
+	arrow.Name = "TutorialArrow"
+	arrow.BackgroundTransparency = 1
+	arrow.AnchorPoint = side and Vector2.new(1, 0.5) or Vector2.new(0.5, 1)
+	arrow.Position = side and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0.5, 0, 0, -6)
+	arrow.Size = UDim2.fromOffset(60, 46)
+	arrow.Font = Enum.Font.FredokaOne
+	arrow.Text = side and "◀" or "▼"
+	arrow.TextSize = 44
+	arrow.TextColor3 = color
+	arrow.ZIndex = 51
+	arrow.Parent = target
+	local ast = Instance.new("UIStroke")
+	ast.Color = rgb(20, 20, 30)
+	ast.Thickness = 3
+	ast.Parent = arrow
+	return glow, arrow, st
+end
+
+RunService.RenderStepped:Connect(function()
+	local want = uiPointer.Want
+	if not want then
+		return
+	end
+	local target = resolveUiTarget(want)
+	if target ~= uiPointer.Target then
+		clearUiGlow()
+		if target then
+			uiPointer.Target = target
+			uiPointer.Glow, uiPointer.Arrow, uiPointer.Stroke = buildUiGlow(target, uiPointer.Color)
+		end
+	end
+	if uiPointer.Glow then
+		local t = os.clock()
+		uiPointer.Stroke.Transparency = 0.15 + 0.35 * (0.5 + 0.5 * math.sin(t * 6))
+		uiPointer.Glow.BackgroundTransparency = 0.8 + 0.12 * math.sin(t * 6)
+		local bounce = math.abs(math.sin(t * 5)) * 12
+		if uiPointer.Arrow.Text == "◀" then
+			uiPointer.Arrow.Position = UDim2.new(1, -16 + bounce, 0.5, 0)
+		else
+			uiPointer.Arrow.Position = UDim2.new(0.5, 0, 0, -6 - bounce)
+		end
+	end
+end)
+
+---------------------------------------------------------------------
 -- Running steps
 ---------------------------------------------------------------------
 local runToken = 0
@@ -1051,6 +1215,7 @@ local lastReaction = 0
 local function cancelStep()
 	runToken += 1
 	stepActive = nil
+	setUiPointer(nil)
 	clearTarget()
 	showCard(false)
 end
@@ -1077,6 +1242,7 @@ local function runStep(step)
 			end))
 		end
 		setTarget(step.Target, guide.Color)
+		setUiPointer(step.Ui, guide.Color)
 	end
 	setCard(step, guide.Color, "")
 	if not step.Goal then
@@ -1086,6 +1252,9 @@ local function runStep(step)
 	local function cleanup()
 		for _, fn in ipairs(unhook) do
 			fn()
+		end
+		if stepActive == step or stepActive == nil then
+			setUiPointer(nil)
 		end
 	end
 
@@ -1120,8 +1289,36 @@ local function runStep(step)
 	guideMode = "escort"
 	local lastHint = os.clock()
 	local hintIndex = 1
+	local shopWasOpen = false
+	local lastUiTarget = nil
 	while alive() and not finished do
 		task.wait(0.2)
+		-- the player opened the shop we're teaching: say what to press (the button is glowing)
+		if step.Ui and step.Ui.Shop and step.ShopLine then
+			local open = openShopFrame(step.Ui.Shop) ~= nil
+			if open and not shopWasOpen then
+				lastHint = os.clock()
+				task.spawn(function()
+					guide:Play("point", 1.5)
+					if guide:Say(step.ShopLine, 5) and stepActive == step then
+						guide:Hush()
+					end
+				end)
+			end
+			shopWasOpen = open
+		end
+		-- a hotbar slot just lit up: tell them to press it
+		if step.Ui and step.Ui.Hotbar and uiPointer.Target ~= lastUiTarget then
+			lastUiTarget = uiPointer.Target
+			if lastUiTarget then
+				lastHint = os.clock()
+				task.spawn(function()
+					if guide:Say("Click the glowing one down there!", 3) and stepActive == step then
+						guide:Hush()
+					end
+				end)
+			end
+		end
 		if step.SkipIf and Checks[step.SkipIf] and Checks[step.SkipIf]() and step.SkipIf ~= "noPlanet" then
 			finished = true
 		end

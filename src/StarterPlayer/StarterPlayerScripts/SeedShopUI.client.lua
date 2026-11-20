@@ -1535,8 +1535,8 @@ local function createShop(kind)
 
 	local restockBtn = button({
 		Name = "Restock",
-		Text = "RESTOCK",
-		TextSize = 20,
+		Text = "RESTOCK ALL +1",
+		TextSize = 17,
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -72, 0.5, 0),
 		Size = UDim2.fromOffset(132, 50),
@@ -2098,7 +2098,8 @@ local function createShop(kind)
 	closeX.Activated:Connect(shop.Close)
 	local function showRestockPrice()
 		local robux = stockFolder:GetAttribute("Robux_Restock")
-		restockBtn.Text = robux and ("RESTOCK\nR$ " .. robux) or "RESTOCK"
+		-- a Robux restock fills EVERY item in every shop, +1 on top of what it rolls
+		restockBtn.Text = robux and ("RESTOCK ALL +1\nR$ " .. robux) or "RESTOCK ALL +1"
 	end
 	showRestockPrice()
 	stockFolder:GetAttributeChangedSignal("Robux_Restock"):Connect(showRestockPrice)

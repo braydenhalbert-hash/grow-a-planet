@@ -343,6 +343,20 @@ function GuideNPC:_makeBubble()
 	self.Bubble = { Gui = gui, Scale = scale, Text = text }
 end
 
+-- talking sound: NpcTalk's typing ticks (client only; quietly does nothing if NpcTalk isn't there)
+local npcTalk = nil
+local function talkSound(index, character)
+	if npcTalk == nil then
+		local ok, mod = pcall(function()
+			return require(script.Parent:WaitForChild("NpcTalk", 2))
+		end)
+		npcTalk = ok and mod or false
+	end
+	if npcTalk and npcTalk.TypeSound then
+		npcTalk.TypeSound(index, character)
+	end
+end
+
 -- shows a line with a typewriter effect, then waits so it can be read. Yields. Returns false if interrupted.
 function GuideNPC:Say(line, hold)
 	self._sayId = (self._sayId or 0) + 1
@@ -358,11 +372,13 @@ function GuideNPC:Say(line, hold)
 		self:Play("talk", 1.2)
 	end
 	local graphemes = utf8.len(line) or #line
+	local plain = b.Text.ContentText
 	for i = 1, graphemes do
 		if self._sayId ~= id or self.Dead then
 			return false
 		end
 		b.Text.MaxVisibleGraphemes = i
+		talkSound(i, string.sub(plain, i, i)) -- the same soft typing ticks the shop NPCs make
 		if i % 2 == 0 then
 			task.wait(0.022)
 		end

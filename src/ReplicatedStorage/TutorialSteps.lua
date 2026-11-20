@@ -5,7 +5,7 @@
 	Edit lines here; you don't need to touch the scripts.
 
 	CORE   taught in order the first time someone plays
-	       (buy a Moon seed -> plant it -> buy + place a Basic Sprinkler -> grow -> harvest -> sell)
+	       (buy a Moon seed -> buy a Basic Sprinkler -> plant the Moon -> place the sprinkler -> grow -> harvest -> sell)
 	       New players start with 600 coins: Moon (100) + Basic Sprinkler (500).
 	SIDE   unlocked while playing, one at a time, when they become useful
 	       (enough coins for a pack or sprinkler, walking up to a shop, planting a black hole...)
@@ -19,11 +19,15 @@
 	             | { Kind = "myPlant" } | { Kind = "readyPlant" } | { Kind = "blackHole" } | nil
 	  Event      what finishes it (see TutorialClient "Signals"): got_Seed, got_Pack, got_Gear, plant, grow_ready,
 	             harvest, sell, pack_roll, sprinkler_placed, collect, buy_rarer
+	  Ui         a button on screen to glow + point at while the step runs:
+	             { Shop = "planets" | "gear" | ..., Item = itemId }  (the item card / its buy button, once that shop is open)
+	             { Hotbar = "Seed" | "Gear" | "Pack" }             (the hotbar slot holding that kind of item)
+	  ShopLine   said once when the player opens the shop from Ui.Shop during this step
 	  Intro      lines said when the step starts (keep them short!)
 	  Hint       said if the player seems stuck
 	  Done       said when it's finished
-	  SkipIf     a check (see TutorialClient) that marks it done without teaching it: hasSeed, hasPlant,
-	             hasReadyPlant, noPlanet, hasPack, hasSprinkler, placedSprinkler, hasRareSeed
+	  SkipIf     a check (see TutorialClient) that marks it done without teaching it: hasSeed, hasMoonSeed, hasPlant,
+	             hasReadyPlant, hasBasicSprinkler, noPlanet, hasPack, hasSprinkler, placedSprinkler, hasRareSeed
 	  Trigger    (side steps) when it unlocks: { Coins = n } and/or { Near = "ShopName" } and/or { Has = "Pack" }
 	             and/or { Plant = "BlackHole" }; After = "otherStepId"
 
@@ -83,34 +87,40 @@ T.Guides = {
 T.Core = {
 	{
 		Id = "welcome", Guide = "Cosmo",
-		Intro = { "Whoa, a new gardener! Hi, I'm Cosmo!", "Here we grow PLANETS. Real ones!", "You've got 600 coins. Let's get you set up!" },
+		Intro = { "Whoa, a new gardener! Hi, I'm Cosmo!", "Here we grow PLANETS. Real ones!", "You've got 600 coins. Let's get you a Moon seed and a sprinkler!" },
 	},
 	{
-		Id = "buy_seed", Guide = "Zib", Goal = "Buy a seed from the Seed Seller",
-		Target = { Kind = "npc", Name = "SeedSeller" }, Event = "got_Seed", SkipIf = "hasSeed",
-		Intro = { "Zib here. Best deals in the galaxy!", "Grab a Moon seed from the Seed Seller. Just 100 coins!" },
-		Hint = { "The Seed Seller is RIGHT there. Follow the glowing path!", "Walk up and press E. Go on, spend!" },
+		Id = "buy_seed", Guide = "Zib", Goal = "Buy a Moon seed from the Seed Seller",
+		Target = { Kind = "npc", Name = "SeedSeller" }, Event = "got_Seed", SkipIf = "hasMoonSeed",
+		Ui = { Shop = "planets", Item = "moon" },
+		Intro = { "Zib here. Best deals in the galaxy!", "First: a MOON seed from the Seed Seller. Only 100 coins!" },
+		ShopLine = "Click the MOON, then press the green buy button!",
+		Hint = { "The Seed Seller is RIGHT there. Follow the glowing path!", "Walk up to him and press E!" },
 		Done = { "Pleasure doing business! Hehe." },
 	},
 	{
-		Id = "plant", Guide = "Cosmo", Goal = "Hold your seed and click a garden bed",
-		Target = { Kind = "base" }, Event = "plant", SkipIf = "hasPlant",
-		Intro = { "Now the fun part! Find an empty garden.", "Hold your seed (press its number) and click the dirt!" },
-		Hint = { "Pick your seed in the hotbar, then click a bed!", "The glowing dirt! Click the glowing dirt!" },
-		Done = { "IT'S ALIVE! Your very own planet!" },
-	},
-	{
 		Id = "sprinkler", Guide = "Sprocket", Goal = "Buy a Basic Sprinkler from the Gear Mechanic",
-		Target = { Kind = "npc", Name = "GearMechanic" }, Event = "got_Gear", SkipIf = "hasSprinkler",
-		Intro = { "Ugh, fine. I'm Sprocket. I build stuff.", "You've got 500 coins left. Buy a Basic Sprinkler!" },
-		Hint = { "The Gear Mechanic. Back of the map. Follow the line.", "Press E on the Gear Mechanic." },
+		Target = { Kind = "npc", Name = "GearMechanic" }, Event = "got_Gear", SkipIf = "hasBasicSprinkler",
+		Ui = { Shop = "gear", Item = "sprinkler_basic" },
+		Intro = { "Ugh, fine. I'm Sprocket. I build stuff.", "You've got 500 coins left. That's a Basic Sprinkler!", "Come on, the Gear Mechanic is over here." },
+		ShopLine = "The BASIC SPRINKLER. Click it, then buy it.",
+		Hint = { "The Gear Mechanic. Follow the line.", "Walk up to him and press E." },
 		Done = { "Hmph. Good choice." },
 	},
 	{
-		Id = "place_sprinkler", Guide = "Sprocket", Goal = "Hold the sprinkler and click next to your Moon",
+		Id = "plant", Guide = "Cosmo", Goal = "Hold your Moon seed and click a garden bed",
+		Target = { Kind = "base" }, Event = "plant", SkipIf = "hasPlant",
+		Ui = { Hotbar = "Seed" },
+		Intro = { "Now the fun part! Let's plant that Moon.", "Pick your seed down here, then click the glowing dirt!" },
+		Hint = { "Click your Moon seed in the hotbar, then click a bed!", "The glowing dirt! Click the glowing dirt!" },
+		Done = { "IT'S ALIVE! Your very own planet!" },
+	},
+	{
+		Id = "place_sprinkler", Guide = "Sprocket", Goal = "Hold the sprinkler, click next to your Moon, then press ✓",
 		Target = { Kind = "myPlant" }, Event = "sprinkler_placed", SkipIf = "placedSprinkler",
-		Intro = { "Hold it, then click your garden, near your Moon.", "Planets in the circle grow FASTER...", "...and can get BONUS mutations worth way more!" },
-		Hint = { "Press its number to hold it, then click a bed in YOUR garden." },
+		Ui = { Hotbar = "Gear" },
+		Intro = { "Now hold your sprinkler. It's down here.", "Click next to your Moon, then press the green ✓.", "Planets in the circle grow FASTER and get BONUS mutations!" },
+		Hint = { "Pick the sprinkler in your hotbar, click your garden, then press ✓." },
 		Done = { "...Okay that looks really cool." },
 	},
 	{

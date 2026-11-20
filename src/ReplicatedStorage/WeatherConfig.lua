@@ -51,6 +51,8 @@ local SND = {
 	thunder = "rbxassetid://72113341430811",
 	boom = "rbxassetid://1841340980",
 	whoosh = "rbxassetid://1840073793",
+	twinkle = "rbxassetid://1839864634", -- "Wonderment": soft magical twinkling music (Stardust Shower)
+	alien = "rbxassetid://1846453362",   -- "Ambient Motion B": calm floaty synth (Alien Eclipse)
 }
 WeatherConfig.Sounds = SND
 
@@ -185,7 +187,7 @@ WeatherConfig.List = {
 			{ Tex = "Star", Rate = 25, Colors = { rgb(255, 240, 160), rgb(255, 255, 255) }, Speed = 10, Size = 1.4, Life = 4, Dir = "down", Spin = 160 },
 		},
 		Props = {},
-		Ambient = SND.nebula, AmbientVolume = 0.45, StartSound = SND.whoosh,
+		Ambient = SND.twinkle, AmbientVolume = 0.4, StartSound = SND.whoosh,
 	},
 	{
 		Id = "alieneclipse", Name = "Alien Eclipse", Icon = "👽", Desc = "Something blocks out the sun. The sky turns toxic green",
@@ -199,7 +201,7 @@ WeatherConfig.List = {
 			{ Tex = "Dust", Rate = 30, Colors = { rgb(140, 255, 80), rgb(60, 200, 40) }, Speed = 5, Size = 0.6, Life = 4, Dir = "up" },
 		},
 		Props = { "eclipse" },
-		Ambient = SND.eerie, AmbientVolume = 0.5, StartSound = SND.rumble,
+		Ambient = SND.alien, AmbientVolume = 0.35, StartSound = SND.whoosh,
 	},
 	{
 		Id = "galacticblizzard", Name = "Galactic Blizzard", Icon = "❄️", Desc = "Freezing space snow howls across the map",

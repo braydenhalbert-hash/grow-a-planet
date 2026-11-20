@@ -45,9 +45,9 @@ local SoundService = game:GetService("SoundService")
 local ContentProvider = game:GetService("ContentProvider")
 
 local TICK_SOUNDS = {
-	{ Id = "rbxassetid://9113140795", Volume = 0.22 },     -- keyboard key
-	{ Id = "rbxassetid://9113142220", Volume = 0.22 },     -- keyboard key
-	{ Id = "rbxassetid://9113140784", Volume = 0.2 },      -- keyboard key
+	{ Id = "rbxassetid://9113140795", Volume = 0.33 },     -- keyboard key
+	{ Id = "rbxassetid://9113142220", Volume = 0.33 },     -- keyboard key
+	{ Id = "rbxassetid://9113140784", Volume = 0.3 },      -- keyboard key
 	{ Id = "rbxassetid://123087446204451", Volume = 0.12 }, -- soft mouse click
 }
 local TICK_EVERY = 2 -- letters per tick
