@@ -108,11 +108,11 @@ T.Core = {
 		Done = { "Hmph. Good choice." },
 	},
 	{
-		Id = "plant", Guide = "Cosmo", Goal = "Hold your Moon seed and click a garden bed",
+		Id = "plant", Guide = "Cosmo", Goal = "Hold your Moon seed, click a garden bed, then press ✓",
 		Target = { Kind = "base" }, Event = "plant", SkipIf = "hasPlant",
 		Ui = { Hotbar = "Seed" },
-		Intro = { "Now the fun part! Let's plant that Moon.", "Pick your seed down here, then click the glowing dirt!" },
-		Hint = { "Click your Moon seed in the hotbar, then click a bed!", "The glowing dirt! Click the glowing dirt!" },
+		Intro = { "Now the fun part! Let's plant that Moon.", "Pick your seed down here, click the glowing dirt, then press the green ✓!" },
+		Hint = { "Click your Moon seed in the hotbar, click a bed, then press ✓!", "The glowing dirt! Click it, then hit the green ✓!" },
 		Done = { "IT'S ALIVE! Your very own planet!" },
 	},
 	{

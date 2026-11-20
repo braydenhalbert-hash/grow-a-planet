@@ -4,9 +4,8 @@
 
 	Equip a seed and point at a garden bed: a see-through preview of the planet follows your
 	mouse with a circle on the ground (green = you can plant here, red = you can't).
-	Click to plant.
-	On phones / tablets: tap the bed to put the planet there (tap again anywhere to move it),
-	then press the green check on the right to plant it, or the red X to cancel.
+	Click (or tap) the bed to put the planet there; click / tap again anywhere to move it.
+	Then press the green check on the right to plant it, or the red X to pick another spot.
 
 	The server (PlantingServer) checks everything again, so this is only the preview and the click.
 
@@ -66,10 +65,11 @@ hint.Visible = false
 hint.TextWrapped = true
 hint.Parent = hintGui
 
-local COMPUTER_HINT = "Click a garden bed to plant. Red circles are too close to other planets."
-local TOUCH_HINT = "Tap a garden bed to place your planet, then press the check mark."
+local COMPUTER_HINT = "Click a garden bed to put your planet there. Red circles are too close to other planets."
+local TOUCH_HINT = "Tap a garden bed to put your planet there."
+local CONFIRM_HINT = "Press ✓ to plant it here, or X to pick another spot."
 
--- touch screens move the planet with taps and confirm with these buttons (right side)
+-- the planet waits where you clicked / tapped until you confirm with these buttons (right side)
 local TOUCH_BUTTON_SIZE = 70
 local confirmHolder = Instance.new("Frame")
 confirmHolder.Name = "PlaceButtons"
@@ -381,7 +381,7 @@ local function touchMode()
 	return not UserInputService.MouseEnabled or UserInputService:GetLastInputType() == Enum.UserInputType.Touch
 end
 
--- on touch screens: where the planet is waiting to be planted ({ Instance, Position } or nil)
+-- where the planet is waiting to be planted ({ Instance, Position } or nil), on every device
 local touchSpot = nil
 local touchSpotOk = false
 
@@ -397,7 +397,7 @@ RunService.RenderStepped:Connect(function()
 	end
 
 	local touching = touchMode()
-	hint.Text = touching and TOUCH_HINT or COMPUTER_HINT
+	hint.Text = touchSpot and CONFIRM_HINT or (touching and TOUCH_HINT or COMPUTER_HINT)
 	-- on phones the coins sit just above the hotbar, so the hint goes a bit higher and smaller
 	if ScreenFit.IsPhone() then
 		hint.Position = UDim2.new(0.5, 0, 1, -150)
@@ -406,7 +406,7 @@ RunService.RenderStepped:Connect(function()
 		hint.Position = UDim2.new(0.5, 0, 1, -112)
 		hint.TextSize = 20
 	end
-	hint.Visible = not (touching and touchSpot) -- the buttons explain themselves once a spot is picked
+	hint.Visible = true
 	syncZones(planet)
 	if not ensureGhost(planet) then
 		return
@@ -414,11 +414,10 @@ RunService.RenderStepped:Connect(function()
 
 	local camera = workspace.CurrentCamera
 	local result
-	if touching then
-		result = touchSpot
-		confirmHolder.Visible = touchSpot ~= nil
-	else
-		confirmHolder.Visible = false
+	confirmHolder.Visible = touchSpot ~= nil
+	if touchSpot then
+		result = touchSpot -- picked: it stays here until ✓ or X
+	elseif not touching then
 		local mouse = UserInputService:GetMouseLocation()
 		result = raycast(camera:ViewportPointToRay(mouse.X, mouse.Y))
 	end
@@ -430,7 +429,7 @@ RunService.RenderStepped:Connect(function()
 		marker.CFrame = CFrame.new(ground + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.rad(90))
 		local ok = isValidSpot(result, planet)
 		marker.Color = ok and OK_COLOR or BAD_COLOR
-		if touching then
+		if touchSpot then
 			touchSpotOk = ok
 			-- the check mark is grey while the spot can't be planted on
 			confirmButton.BackgroundColor3 = ok and Color3.fromRGB(60, 200, 90) or Color3.fromRGB(120, 125, 130)
@@ -465,19 +464,25 @@ local function tryPlant(ray)
 	end
 end
 
+-- computer: a click puts the planet there (it isn't planted until you press the check mark)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed or input.UserInputType ~= Enum.UserInputType.MouseButton1 then
 		return
 	end
 	local camera = workspace.CurrentCamera
-	if not camera then
+	if not camera or not equippedSeed() then
 		return
 	end
 	local mouse = UserInputService:GetMouseLocation()
-	tryPlant(camera:ViewportPointToRay(mouse.X, mouse.Y))
+	local result = raycast(camera:ViewportPointToRay(mouse.X, mouse.Y))
+	if result then
+		touchSpot = { Instance = result.Instance, Position = result.Position }
+	end
 end)
 
--- touch screens: a tap moves the planet there (it isn't planted until you press the check mark)
+-- touch screens: a tap moves the planet there. The game's own mouse ray is used (it already knows
+-- exactly where the finger landed, notch and top bar included), so the planet sits right under it.
+local playerMouse = player:GetMouse()
 UserInputService.TouchTapInWorld:Connect(function(position, processed)
 	if processed then
 		return
@@ -486,7 +491,7 @@ UserInputService.TouchTapInWorld:Connect(function(position, processed)
 	if not camera or not equippedSeed() then
 		return
 	end
-	local result = raycast(camera:ScreenPointToRay(position.X, position.Y))
+	local result = raycast(playerMouse.UnitRay)
 	if result then
 		touchSpot = { Instance = result.Instance, Position = result.Position }
 	end

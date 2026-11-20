@@ -316,7 +316,7 @@ UserInputService.TouchTapInWorld:Connect(function(position, processedByUI)
 		return
 	end
 	touchPoint = position
-	lockAt(aim(camera:ViewportPointToRay(position.X, position.Y)))
+	lockAt(aim(mouse.UnitRay)) -- the game's own ray for the tap: lands right under the finger
 end)
 
 local function flatDistance(a, b)
